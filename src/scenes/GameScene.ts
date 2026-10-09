@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { FONT, addButton, fadeIn, fadeTo } from '../ui';
 import { WorldColor } from '../worldColor';
+import type { PuzzleData } from './PuzzleScene';
 
 // 들판 크기: 화면(360×640)의 가로·세로 2배
 const WORLD_WIDTH = 720;
@@ -280,9 +281,27 @@ export class GameScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(100);
 
-    // 임시 끝 조건: S-1.8에서 "색 복원 완료"로 바뀐다.
-    addButton(this, width - 70, 76, '끝내기 (임시)', () => fadeTo(this, 'End'), 120, 40)
+    // 임시 퍼즐 진입: S-1.8에서 "조각을 주우면 퍼즐"로 바뀐다.
+    addButton(this, width - 70, 76, '퍼즐 (테스트)', () => this.openPuzzle(), 120, 40)
       .setScrollFactor(0)
       .setDepth(100);
+
+    // 임시 끝 조건: S-1.8에서 "색 복원 완료"로 바뀐다.
+    addButton(this, width - 70, 124, '끝내기 (임시)', () => fadeTo(this, 'End'), 120, 40)
+      .setScrollFactor(0)
+      .setDepth(100);
+  }
+
+  // 들판을 멈추고 그 위에 퍼즐을 띄운다. 퍼즐이 끝나면 들판으로 돌아온다.
+  private openPuzzle() {
+    this.stopMoving();
+    this.scene.pause();
+    this.scene.launch('Puzzle', {
+      pairs: 2,
+      onComplete: () => {
+        this.scene.stop('Puzzle');
+        this.scene.resume();
+      },
+    } satisfies PuzzleData);
   }
 }
