@@ -26,8 +26,9 @@ export class GameScene extends Phaser.Scene {
   private target?: Phaser.Math.Vector2;
   private progressCheckAt = 0;
   private progressDistance = 0;
-  private fpsText!: Phaser.GameObjects.Text;
+  private fpsText?: Phaser.GameObjects.Text;
   private hudText!: Phaser.GameObjects.Text;
+  private color!: WorldColor;
   private fragmentsFound = 0;
 
   constructor() {
@@ -61,9 +62,11 @@ export class GameScene extends Phaser.Scene {
     cam.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     cam.startFollow(this.player, true, 0.12, 0.12);
 
-    const color = new WorldColor(this, cam);
+    this.color = new WorldColor(this, cam);
     this.createHud();
-    this.createDevUi(width, color);
+    if (!this.color.supported) this.showWebGlWarning(width);
+    // 개발용 UI(FPS, 테스트 버튼)는 개발 서버에서만 보이고 배포본에는 없다.
+    if (import.meta.env.DEV) this.createDevUi(width);
 
     // 버튼 위를 누른 경우는 이동으로 치지 않는다.
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
@@ -73,7 +76,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   update() {
-    this.fpsText.setText(`FPS ${Math.round(this.game.loop.actualFps)}`);
+    this.fpsText?.setText(`FPS ${Math.round(this.game.loop.actualFps)}`);
 
     if (!this.target) return;
     const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.target.x, this.target.y);
@@ -133,6 +136,15 @@ export class GameScene extends Phaser.Scene {
     this.fragmentsFound += 1;
     this.updateHud();
     this.showMessage('기억의 조각을 찾았다');
+    this.time.delayedCall(1600, () => this.openPuzzle());
+  }
+
+  // 퍼즐로 기억을 되찾으면 들판에 색이 돌아오고, 잠시 머문 뒤 끝 화면으로 간다.
+  private restoreWorld() {
+    this.color.restore(() => {
+      this.showMessage('들판에 색이 돌아왔다');
+      this.time.delayedCall(3000, () => fadeTo(this, 'End'));
+    });
   }
 
   private createHud() {
@@ -247,8 +259,8 @@ export class GameScene extends Phaser.Scene {
     this.add.image(0, 0, 'meadow').setOrigin(0);
   }
 
-  // 화면에 고정되는 개발용 UI. S-1.8에서 개발 모드에서만 보이게 바꾼다.
-  private createDevUi(width: number, color: WorldColor) {
+  // 화면에 고정되는 개발용 UI
+  private createDevUi(width: number) {
     this.fpsText = this.add
       .text(8, this.scale.height - 8, '', {
         fontFamily: FONT,
@@ -261,18 +273,7 @@ export class GameScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(100);
 
-    if (!color.supported) {
-      this.add
-        .text(width / 2, 40, '이 기기는 흑백 효과를 지원하지 않아요 (WebGL 없음)', {
-          fontFamily: FONT,
-          fontSize: '12px',
-          color: '#ffcc00',
-        })
-        .setOrigin(0.5)
-        .setScrollFactor(0)
-        .setDepth(100);
-    }
-
+    const color = this.color;
     addButton(this, width - 70, 28, '색 (테스트)', () => {
       if (color.isAnimating) return;
       if (color.isGray) color.restore();
@@ -281,19 +282,30 @@ export class GameScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(100);
 
-    // 임시 퍼즐 진입: S-1.8에서 "조각을 주우면 퍼즐"로 바뀐다.
-    addButton(this, width - 70, 76, '퍼즐 (테스트)', () => this.openPuzzle(), 120, 40)
+    addButton(this, width - 70, 76, '퍼즐 (테스트)', () => this.openPuzzle(false), 120, 40)
       .setScrollFactor(0)
       .setDepth(100);
 
-    // 임시 끝 조건: S-1.8에서 "색 복원 완료"로 바뀐다.
-    addButton(this, width - 70, 124, '끝내기 (임시)', () => fadeTo(this, 'End'), 120, 40)
+    addButton(this, width - 70, 124, '끝내기 (테스트)', () => fadeTo(this, 'End'), 120, 40)
       .setScrollFactor(0)
       .setDepth(100);
   }
 
-  // 들판을 멈추고 그 위에 퍼즐을 띄운다. 퍼즐이 끝나면 들판으로 돌아온다.
-  private openPuzzle() {
+  private showWebGlWarning(width: number) {
+    this.add
+      .text(width / 2, 60, '이 기기는 흑백 효과를 지원하지 않아요 (WebGL 없음)', {
+        fontFamily: FONT,
+        fontSize: '12px',
+        color: '#ffcc00',
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(100);
+  }
+
+  // 들판을 멈추고 그 위에 퍼즐을 띄운다. 퍼즐이 끝나면 들판으로 돌아와 색을 되찾는다.
+  // (개발용 테스트 버튼에서는 restore=false로 퍼즐만 확인한다)
+  private openPuzzle(restore = true) {
     this.stopMoving();
     this.scene.pause();
     this.scene.launch('Puzzle', {
@@ -301,6 +313,7 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => {
         this.scene.stop('Puzzle');
         this.scene.resume();
+        if (restore) this.restoreWorld();
       },
     } satisfies PuzzleData);
   }

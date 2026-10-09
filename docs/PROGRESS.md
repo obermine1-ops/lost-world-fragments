@@ -1,6 +1,6 @@
 # 진행 상태
-- 현재 단계: Sprint 1 구현 중 — S-1.1~1.6 완료, S-1.7 구현·배포 완료(폰 확인 대기)
-- 다음 할 일: 폰에서 짝맞추기 확인 → S-1.8 한 바퀴 연결 → 스프린트 종료 회고.
+- 현재 단계: Sprint 1 구현 중 — S-1.1~1.7 완료, S-1.8 구현·배포 완료(폰 전체 데모 대기)
+- 다음 할 일: 폰으로 한 바퀴 데모 → "스프린트 끝났어" → 스프린트 종료 회고(docs/sprint-1/REVIEW.md) → Sprint 2 스토리.
 - 개발 팁: 개발 서버에서는 브라우저 콘솔의 `window.game`으로 장면 상태를 조작해 테스트할 수 있다(배포본엔 없음). Sprint 1 끝나면 스프린트 종료 대화(회고 → docs/sprint-1/REVIEW.md)
 - 게임 주소: https://obermine1-ops.github.io/lost-world-fragments/ / 저장소: https://github.com/obermine1-ops/lost-world-fragments
 - 푸시: 첫 로그인은 사용자 터미널 탭에서 완료. 이후엔 저장된 인증으로 Claude 셸에서 `git push` 가능 (`$env:GCM_INTERACTIVE='never'`)

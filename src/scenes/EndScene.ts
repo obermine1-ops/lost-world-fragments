@@ -18,6 +18,14 @@ export class EndScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    this.add
+      .text(width / 2, height * 0.52, '봄의 들판에 색과 기억이 돌아왔다', {
+        fontFamily: FONT,
+        fontSize: '16px',
+        color: '#cccccc',
+      })
+      .setOrigin(0.5);
+
     const hint = this.add
       .text(width / 2, height * 0.7, '화면을 탭하면 처음으로', {
         fontFamily: FONT,
