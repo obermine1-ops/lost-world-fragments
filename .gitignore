@@ -2,3 +2,7 @@ node_modules/
 dist/
 .DS_Store
 *.log
+
+# 원본 에셋 팩 (필요한 파일만 public/assets로 복사해 사용)
+_asset-src/
+*.zip
