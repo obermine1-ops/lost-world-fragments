@@ -8,7 +8,7 @@ import { EndScene } from './scenes/EndScene';
 export const GAME_WIDTH = 360;
 export const GAME_HEIGHT = 640;
 
-new Phaser.Game({
+const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   width: GAME_WIDTH,
@@ -25,3 +25,8 @@ new Phaser.Game({
   },
   scene: [TitleScene, GameScene, EndScene],
 });
+
+// 개발 중에만 브라우저 콘솔에서 게임 상태를 들여다볼 수 있게 한다. (배포본에는 없음)
+if (import.meta.env.DEV) {
+  (window as unknown as { game: Phaser.Game }).game = game;
+}

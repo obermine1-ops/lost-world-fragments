@@ -1,6 +1,7 @@
 # 진행 상태
-- 현재 단계: Sprint 1 구현 중 — S-1.1~1.4 완료, S-1.5 구현·배포 완료(폰 조작감 확인 대기)
-- 다음 할 일: 폰에서 탭 이동 조작감 확인 → S-1.6 기억 조각 줍기 → S-1.7 짝맞추기 → S-1.8 연결. Sprint 1 끝나면 스프린트 종료 대화(회고 → docs/sprint-1/REVIEW.md)
+- 현재 단계: Sprint 1 구현 중 — S-1.1~1.5 완료, S-1.6 구현·배포 완료(폰 확인 대기)
+- 다음 할 일: 폰에서 조각 줍기 확인 → S-1.7 짝맞추기 → S-1.8 연결.
+- 개발 팁: 개발 서버에서는 브라우저 콘솔의 `window.game`으로 장면 상태를 조작해 테스트할 수 있다(배포본엔 없음). Sprint 1 끝나면 스프린트 종료 대화(회고 → docs/sprint-1/REVIEW.md)
 - 게임 주소: https://obermine1-ops.github.io/lost-world-fragments/ / 저장소: https://github.com/obermine1-ops/lost-world-fragments
 - 푸시: 첫 로그인은 사용자 터미널 탭에서 완료. 이후엔 저장된 인증으로 Claude 셸에서 `git push` 가능 (`$env:GCM_INTERACTIVE='never'`)
 - 개발 서버: `.claude/launch.json`의 `game-dev` (node.exe로 vite 직접 실행 — 앱이 Node 설치 전에 켜져서 PATH에 node가 없을 수 있음)

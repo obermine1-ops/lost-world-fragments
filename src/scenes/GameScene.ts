@@ -11,6 +11,11 @@ const ARRIVE_DISTANCE = 4;
 const STUCK_CHECK_MS = 250;
 const STUCK_MIN_PROGRESS = 6;
 
+// 기억의 조각: 시작 지점에서 길을 따라 올라가다 오른쪽으로 꺾어야 찾을 수 있는 자리
+const FRAGMENT_X = 560;
+const FRAGMENT_Y = 240;
+const TOTAL_FRAGMENTS = 1;
+
 const GRASS = 0x6cc551;
 const FLOWER_COLORS = [0xff5a6e, 0xffd23f, 0xff9ad5, 0xa77bff, 0x4fc3ff, 0xffffff];
 
@@ -21,6 +26,8 @@ export class GameScene extends Phaser.Scene {
   private progressCheckAt = 0;
   private progressDistance = 0;
   private fpsText!: Phaser.GameObjects.Text;
+  private hudText!: Phaser.GameObjects.Text;
+  private fragmentsFound = 0;
 
   constructor() {
     super('Game');
@@ -30,10 +37,12 @@ export class GameScene extends Phaser.Scene {
     const { width } = this.scale;
     fadeIn(this);
     this.target = undefined;
+    this.fragmentsFound = 0;
 
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     this.drawMeadow();
     const obstacles = this.createObstacles();
+    const fragment = this.createFragment(FRAGMENT_X, FRAGMENT_Y);
 
     this.player = this.add.circle(WORLD_WIDTH / 2, WORLD_HEIGHT - 120, PLAYER_RADIUS, 0xff8c42);
     this.player.setStrokeStyle(2, 0x5a2d0c);
@@ -42,12 +51,17 @@ export class GameScene extends Phaser.Scene {
     body.setCircle(PLAYER_RADIUS).setCollideWorldBounds(true);
     // 장애물에 비스듬히 닿으면 미끄러지듯 비켜 가고, 정면으로 막히면 update에서 멈춘다.
     this.physics.add.collider(this.player, obstacles);
+    const pickup = this.physics.add.overlap(this.player, fragment, () => {
+      pickup.destroy();
+      this.collectFragment(fragment);
+    });
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     cam.startFollow(this.player, true, 0.12, 0.12);
 
     const color = new WorldColor(this, cam);
+    this.createHud();
     this.createDevUi(width, color);
 
     // 버튼 위를 누른 경우는 이동으로 치지 않는다.
@@ -91,6 +105,80 @@ export class GameScene extends Phaser.Scene {
     (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
   }
 
+  // 반짝이며 둥실거리는 기억의 조각 (임시 도형: 빛무리 + 마름모)
+  private createFragment(x: number, y: number) {
+    const glow = this.add.circle(0, 0, 20, 0xfff3b0, 0.35);
+    const gem = this.add.rectangle(0, 0, 14, 14, 0x9be7ff).setStrokeStyle(2, 0xffffff).setAngle(45);
+    const fragment = this.add.container(x, y, [glow, gem]);
+    fragment.setSize(28, 28);
+    this.physics.add.existing(fragment, true);
+
+    this.tweens.add({ targets: glow, scale: 1.5, alpha: 0.1, duration: 900, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: gem, y: -5, duration: 1100, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
+    return fragment;
+  }
+
+  private collectFragment(fragment: Phaser.GameObjects.Container) {
+    this.tweens.killTweensOf(fragment.list);
+    this.tweens.add({
+      targets: fragment,
+      scale: 1.8,
+      alpha: 0,
+      y: fragment.y - 20,
+      duration: 500,
+      onComplete: () => fragment.destroy(),
+    });
+
+    this.fragmentsFound += 1;
+    this.updateHud();
+    this.showMessage('기억의 조각을 찾았다');
+  }
+
+  private createHud() {
+    this.hudText = this.add
+      .text(8, 8, '', {
+        fontFamily: FONT,
+        fontSize: '16px',
+        color: '#ffffff',
+        backgroundColor: '#00000066',
+        padding: { x: 8, y: 4 },
+      })
+      .setScrollFactor(0)
+      .setDepth(100);
+    this.updateHud();
+  }
+
+  private updateHud() {
+    this.hudText.setText(`◆ 기억의 조각 ${this.fragmentsFound}/${TOTAL_FRAGMENTS}`);
+  }
+
+  // 화면 가운데에 잠깐 떠올랐다 사라지는 안내 문구
+  private showMessage(text: string) {
+    const { width, height } = this.scale;
+    const message = this.add
+      .text(width / 2, height * 0.4, text, {
+        fontFamily: FONT,
+        fontSize: '20px',
+        color: '#ffffff',
+        backgroundColor: '#000000aa',
+        padding: { x: 16, y: 10 },
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(110)
+      .setAlpha(0);
+
+    this.tweens.chain({
+      targets: message,
+      tweens: [
+        { alpha: 1, y: '-=10', duration: 300 },
+        { alpha: 1, duration: 1400 },
+        { alpha: 0, duration: 400 },
+      ],
+      onComplete: () => message.destroy(),
+    });
+  }
+
   // 탭한 곳에 잠깐 퍼지는 동그라미를 보여준다.
   private showTapMarker(x: number, y: number) {
     const marker = this.add.circle(x, y, 6).setStrokeStyle(2, 0xffffff, 0.9);
@@ -115,6 +203,7 @@ export class GameScene extends Phaser.Scene {
     const keepOut = [
       new Phaser.Geom.Rectangle(80, 430, 280, 180),
       new Phaser.Geom.Rectangle(WORLD_WIDTH / 2 - 50, 0, 100, WORLD_HEIGHT),
+      new Phaser.Geom.Rectangle(FRAGMENT_X - 50, FRAGMENT_Y - 50, 100, 100),
     ];
     const freeSpot = () => {
       for (;;) {
@@ -160,13 +249,14 @@ export class GameScene extends Phaser.Scene {
   // 화면에 고정되는 개발용 UI. S-1.8에서 개발 모드에서만 보이게 바꾼다.
   private createDevUi(width: number, color: WorldColor) {
     this.fpsText = this.add
-      .text(8, 8, '', {
+      .text(8, this.scale.height - 8, '', {
         fontFamily: FONT,
         fontSize: '14px',
         color: '#ffffff',
         backgroundColor: '#00000088',
         padding: { x: 4, y: 2 },
       })
+      .setOrigin(0, 1)
       .setScrollFactor(0)
       .setDepth(100);
 
