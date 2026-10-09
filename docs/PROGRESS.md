@@ -1,6 +1,7 @@
 # 진행 상태
-- 현재 단계: Sprint 2 진행 중 — S-2.1 에셋 고르기 완료
-- 다음 할 일: S-2.2 첫 번째 진짜 지역(봄 들판 A) — Tiled JSON 맵 생성·불러오기
+- 현재 단계: Sprint 2 진행 중 — S-2.1 완료, S-2.2 구현·배포 완료(폰 확인 대기)
+- 다음 할 일: 폰에서 진짜 들판 확인·피드백 → S-2.3 주인공 걷기 애니메이션
+- 지도 수정: `tools/build-maps.mjs` 고친 뒤 `npm run maps` (결과 JSON도 커밋)
 - 에셋: 원본은 `_asset-src/ninja-adventure/`(git 제외, zip은 프로젝트 폴더), 게임에 쓰는 것만 `public/assets/`
 - 개발 팁: 개발 서버에서는 브라우저 콘솔의 `window.game`으로 장면 상태를 조작해 테스트할 수 있다(배포본엔 없음). Sprint 1 끝나면 스프린트 종료 대화(회고 → docs/sprint-1/REVIEW.md)
 - 게임 주소: https://obermine1-ops.github.io/lost-world-fragments/ / 저장소: https://github.com/obermine1-ops/lost-world-fragments
