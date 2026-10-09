@@ -26,23 +26,22 @@ export function addButton(
   y: number,
   label: string,
   onTap: () => void,
+  width = 180,
+  height = 56,
 ) {
-  const width = 180;
-  const height = 56;
-
   const bg = scene.add
-    .rectangle(0, 0, width, height, 0xffffff, 0.12)
+    .rectangle(0, 0, width, height, 0x000000, 0.35)
     .setStrokeStyle(2, 0xffffff, 0.6);
   const text = scene.add
-    .text(0, 0, label, { fontFamily: FONT, fontSize: '22px', color: '#ffffff' })
+    .text(0, 0, label, { fontFamily: FONT, fontSize: `${Math.round(height * 0.4)}px`, color: '#ffffff' })
     .setOrigin(0.5);
 
   const button = scene.add.container(x, y, [bg, text]);
   button.setSize(width, height).setInteractive({ useHandCursor: true });
   button.on('pointerdown', () => bg.setFillStyle(0xffffff, 0.25));
-  button.on('pointerout', () => bg.setFillStyle(0xffffff, 0.12));
+  button.on('pointerout', () => bg.setFillStyle(0x000000, 0.35));
   button.on('pointerup', () => {
-    bg.setFillStyle(0xffffff, 0.12);
+    bg.setFillStyle(0x000000, 0.35);
     onTap();
   });
   return button;

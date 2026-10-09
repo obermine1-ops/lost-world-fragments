@@ -2,10 +2,24 @@ import Phaser from 'phaser';
 import { FONT, addButton, fadeIn, fadeTo } from '../ui';
 import { WorldColor } from '../worldColor';
 
+// 들판 크기: 화면(360×640)의 가로·세로 2배
+const WORLD_WIDTH = 720;
+const WORLD_HEIGHT = 1280;
+const PLAYER_SPEED = 110;
+const PLAYER_RADIUS = 10;
+const ARRIVE_DISTANCE = 4;
+const STUCK_CHECK_MS = 250;
+const STUCK_MIN_PROGRESS = 6;
+
+const GRASS = 0x6cc551;
 const FLOWER_COLORS = [0xff5a6e, 0xffd23f, 0xff9ad5, 0xa77bff, 0x4fc3ff, 0xffffff];
 
-// 들판 탐험 장면. S-1.5에서 맵과 탭 이동이 들어온다.
+// 들판 탐험 장면. 그림 없이 도형으로 만든 임시 들판 (실제 맵은 Sprint 2).
 export class GameScene extends Phaser.Scene {
+  private player!: Phaser.GameObjects.Arc;
+  private target?: Phaser.Math.Vector2;
+  private progressCheckAt = 0;
+  private progressDistance = 0;
   private fpsText!: Phaser.GameObjects.Text;
 
   constructor() {
@@ -13,20 +27,148 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    const { width, height } = this.scale;
+    const { width } = this.scale;
     fadeIn(this);
+    this.target = undefined;
 
-    this.drawMeadow(width, height);
-    const color = new WorldColor(this, this.cameras.main);
+    this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    this.drawMeadow();
+    const obstacles = this.createObstacles();
 
-    // 개발용 FPS 표시 (S-1.8에서 개발 모드에서만 보이게 바꾼다)
-    this.fpsText = this.add.text(8, 8, '', {
-      fontFamily: FONT,
-      fontSize: '14px',
-      color: '#ffffff',
-      backgroundColor: '#00000088',
-      padding: { x: 4, y: 2 },
+    this.player = this.add.circle(WORLD_WIDTH / 2, WORLD_HEIGHT - 120, PLAYER_RADIUS, 0xff8c42);
+    this.player.setStrokeStyle(2, 0x5a2d0c);
+    this.physics.add.existing(this.player);
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    body.setCircle(PLAYER_RADIUS).setCollideWorldBounds(true);
+    // 장애물에 비스듬히 닿으면 미끄러지듯 비켜 가고, 정면으로 막히면 update에서 멈춘다.
+    this.physics.add.collider(this.player, obstacles);
+
+    const cam = this.cameras.main;
+    cam.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    cam.startFollow(this.player, true, 0.12, 0.12);
+
+    const color = new WorldColor(this, cam);
+    this.createDevUi(width, color);
+
+    // 버튼 위를 누른 경우는 이동으로 치지 않는다.
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
+      if (over.length > 0) return;
+      this.moveTo(pointer.worldX, pointer.worldY);
     });
+  }
+
+  update() {
+    this.fpsText.setText(`FPS ${Math.round(this.game.loop.actualFps)}`);
+
+    if (!this.target) return;
+    const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.target.x, this.target.y);
+    if (distance < ARRIVE_DISTANCE) {
+      this.stopMoving();
+      return;
+    }
+
+    // 미끄러지는 동안에도 목적지 쪽으로 방향을 다시 잡는다.
+    this.physics.moveTo(this.player, this.target.x, this.target.y, PLAYER_SPEED);
+
+    // 일정 시간 동안 목적지에 거의 가까워지지 않았다면 막힌 것으로 보고 멈춘다.
+    if (this.time.now - this.progressCheckAt > STUCK_CHECK_MS) {
+      if (this.progressDistance - distance < STUCK_MIN_PROGRESS) this.stopMoving();
+      this.progressCheckAt = this.time.now;
+      this.progressDistance = distance;
+    }
+  }
+
+  private moveTo(x: number, y: number) {
+    this.target = new Phaser.Math.Vector2(x, y);
+    this.progressCheckAt = this.time.now;
+    this.progressDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
+    this.physics.moveTo(this.player, x, y, PLAYER_SPEED);
+    this.showTapMarker(x, y);
+  }
+
+  private stopMoving() {
+    this.target = undefined;
+    (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+  }
+
+  // 탭한 곳에 잠깐 퍼지는 동그라미를 보여준다.
+  private showTapMarker(x: number, y: number) {
+    const marker = this.add.circle(x, y, 6).setStrokeStyle(2, 0xffffff, 0.9);
+    this.tweens.add({
+      targets: marker,
+      scale: 2.2,
+      alpha: 0,
+      duration: 450,
+      onComplete: () => marker.destroy(),
+    });
+  }
+
+  // 지나갈 수 없는 것들: 연못, 나무, 바위
+  private createObstacles() {
+    const group = this.physics.add.staticGroup();
+    const rnd = new Phaser.Math.RandomDataGenerator(['obstacles']);
+
+    const pond = this.add.ellipse(220, 520, 220, 120, 0x3a8dde);
+    group.add(pond);
+
+    // 연못·길·시작 지점과 겹치지 않는 자리를 고른다.
+    const keepOut = [
+      new Phaser.Geom.Rectangle(80, 430, 280, 180),
+      new Phaser.Geom.Rectangle(WORLD_WIDTH / 2 - 50, 0, 100, WORLD_HEIGHT),
+    ];
+    const freeSpot = () => {
+      for (;;) {
+        const x = rnd.between(40, WORLD_WIDTH - 40);
+        const y = rnd.between(80, WORLD_HEIGHT - 260);
+        if (!keepOut.some((r) => r.contains(x, y))) return { x, y };
+      }
+    };
+
+    for (let i = 0; i < 14; i++) {
+      const { x, y } = freeSpot();
+      const tree = this.add.circle(x, y, 22, 0x2f9e44).setStrokeStyle(3, 0x1b5e20);
+      group.add(tree);
+      (tree.body as Phaser.Physics.Arcade.StaticBody).setCircle(18, 4, 4);
+    }
+
+    for (let i = 0; i < 8; i++) {
+      const { x, y } = freeSpot();
+      group.add(this.add.rectangle(x, y, rnd.between(30, 50), rnd.between(24, 36), 0x9e9e9e));
+    }
+
+    return group;
+  }
+
+  // 색이 돌아왔을 때 차이가 잘 보이도록 알록달록한 바닥을 한 장의 그림으로 미리 그려둔다.
+  // (꽃 수백 개를 따로 그리면 폰이 느려지므로 텍스처 하나로 합친다)
+  private drawMeadow() {
+    if (!this.textures.exists('meadow')) {
+      const rnd = new Phaser.Math.RandomDataGenerator(['meadow']);
+      const g = this.make.graphics({}, false);
+      g.fillStyle(GRASS).fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+      g.fillStyle(0xd9b77e).fillRect(WORLD_WIDTH / 2 - 24, 0, 48, WORLD_HEIGHT);
+      for (let i = 0; i < 600; i++) {
+        g.fillStyle(rnd.pick(FLOWER_COLORS));
+        g.fillCircle(rnd.between(4, WORLD_WIDTH - 4), rnd.between(4, WORLD_HEIGHT - 4), rnd.between(2, 4));
+      }
+      g.generateTexture('meadow', WORLD_WIDTH, WORLD_HEIGHT);
+      g.destroy();
+    }
+    this.add.image(0, 0, 'meadow').setOrigin(0);
+  }
+
+  // 화면에 고정되는 개발용 UI. S-1.8에서 개발 모드에서만 보이게 바꾼다.
+  private createDevUi(width: number, color: WorldColor) {
+    this.fpsText = this.add
+      .text(8, 8, '', {
+        fontFamily: FONT,
+        fontSize: '14px',
+        color: '#ffffff',
+        backgroundColor: '#00000088',
+        padding: { x: 4, y: 2 },
+      })
+      .setScrollFactor(0)
+      .setDepth(100);
 
     if (!color.supported) {
       this.add
@@ -35,44 +177,22 @@ export class GameScene extends Phaser.Scene {
           fontSize: '12px',
           color: '#ffcc00',
         })
-        .setOrigin(0.5);
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(100);
     }
 
-    // 임시 테스트 버튼: 흑백 ↔ 컬러 전환 (S-1.8에서 퍼즐 클리어로 대체)
-    addButton(this, width / 2, height * 0.74, '색 돌리기 (테스트)', () => {
+    addButton(this, width - 70, 28, '색 (테스트)', () => {
       if (color.isAnimating) return;
       if (color.isGray) color.restore();
       else color.fade();
-    });
+    }, 120, 40)
+      .setScrollFactor(0)
+      .setDepth(100);
 
     // 임시 끝 조건: S-1.8에서 "색 복원 완료"로 바뀐다.
-    addButton(this, width / 2, height * 0.87, '끝내기 (임시)', () => fadeTo(this, 'End'));
-  }
-
-  update() {
-    this.fpsText.setText(`FPS ${Math.round(this.game.loop.actualFps)}`);
-  }
-
-  // 색이 돌아왔을 때 차이가 잘 보이도록 알록달록한 임시 들판을 도형으로 그린다.
-  private drawMeadow(width: number, height: number) {
-    const rnd = new Phaser.Math.RandomDataGenerator(['meadow']);
-
-    this.add.rectangle(0, 0, width, height * 0.3, 0x8fd3ff).setOrigin(0);
-    this.add.circle(width * 0.8, height * 0.09, 28, 0xffe066);
-    this.add.rectangle(0, height * 0.3, width, height * 0.7, 0x6cc551).setOrigin(0);
-    this.add.ellipse(width * 0.3, height * 0.5, 160, 70, 0x3a8dde);
-
-    for (let i = 0; i < 6; i++) {
-      const x = rnd.between(20, width - 20);
-      const y = rnd.between(height * 0.32, height * 0.62);
-      this.add.rectangle(x, y + 18, 10, 26, 0x8b5a2b);
-      this.add.circle(x, y, 22, 0x2f9e44);
-    }
-
-    for (let i = 0; i < 160; i++) {
-      const x = rnd.between(4, width - 4);
-      const y = rnd.between(height * 0.31, height - 4);
-      this.add.circle(x, y, rnd.between(3, 6), rnd.pick(FLOWER_COLORS));
-    }
+    addButton(this, width - 70, 76, '끝내기 (임시)', () => fadeTo(this, 'End'), 120, 40)
+      .setScrollFactor(0)
+      .setDepth(100);
   }
 }
