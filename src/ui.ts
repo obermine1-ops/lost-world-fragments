@@ -1,0 +1,49 @@
+import Phaser from 'phaser';
+
+export const FONT = 'sans-serif';
+const FADE_MS = 400;
+
+// 장면이 시작될 때 검은 화면에서 서서히 밝아진다.
+export function fadeIn(scene: Phaser.Scene) {
+  // 장면을 다시 시작해도 입력 설정은 남아 있으므로, fadeTo에서 끈 입력을 다시 켠다.
+  scene.input.enabled = true;
+  scene.cameras.main.fadeIn(FADE_MS, 0, 0, 0);
+}
+
+// 화면을 어둡게 한 뒤 다음 장면으로 넘어간다. 전환 중 중복 탭은 무시한다.
+export function fadeTo(scene: Phaser.Scene, key: string) {
+  const cam = scene.cameras.main;
+  if (cam.fadeEffect.isRunning) return;
+  scene.input.enabled = false;
+  cam.fadeOut(FADE_MS, 0, 0, 0);
+  cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => scene.scene.start(key));
+}
+
+// 손가락으로 누르기 쉬운 크기의 둥근 버튼.
+export function addButton(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  label: string,
+  onTap: () => void,
+) {
+  const width = 180;
+  const height = 56;
+
+  const bg = scene.add
+    .rectangle(0, 0, width, height, 0xffffff, 0.12)
+    .setStrokeStyle(2, 0xffffff, 0.6);
+  const text = scene.add
+    .text(0, 0, label, { fontFamily: FONT, fontSize: '22px', color: '#ffffff' })
+    .setOrigin(0.5);
+
+  const button = scene.add.container(x, y, [bg, text]);
+  button.setSize(width, height).setInteractive({ useHandCursor: true });
+  button.on('pointerdown', () => bg.setFillStyle(0xffffff, 0.25));
+  button.on('pointerout', () => bg.setFillStyle(0xffffff, 0.12));
+  button.on('pointerup', () => {
+    bg.setFillStyle(0xffffff, 0.12);
+    onTap();
+  });
+  return button;
+}

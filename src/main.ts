@@ -1,7 +1,10 @@
 import Phaser from 'phaser';
-import { HelloScene } from './scenes/HelloScene';
+import { TitleScene } from './scenes/TitleScene';
+import { GameScene } from './scenes/GameScene';
+import { EndScene } from './scenes/EndScene';
 
-// 세로 화면 기준 해상도 (9:16). 폰 화면 크기에 맞춰 비율을 유지한 채 확대·축소된다.
+// 세로 화면 기준 해상도 (9:16). 폰 화면 크기에 맞춰 비율을 유지한 채 확대·축소되고,
+// 비율이 다른 폰에서는 남는 위아래(또는 좌우)가 배경색 여백으로 채워진다.
 export const GAME_WIDTH = 360;
 export const GAME_HEIGHT = 640;
 
@@ -16,5 +19,5 @@ new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [HelloScene],
+  scene: [TitleScene, GameScene, EndScene],
 });

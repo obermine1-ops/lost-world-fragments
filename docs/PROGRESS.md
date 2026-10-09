@@ -1,6 +1,8 @@
 # 진행 상태
-- 현재 단계: Sprint 1 구현 중 — S-1.1 완료, 다음 S-1.2 (docs/sprint-1/STORIES.md)
-- 다음 할 일: S-1.2 GitHub 계정 생성(사용자) → 저장소·자동 배포 → 폰 접속 확인. Sprint 1 끝나면 스프린트 종료 대화(회고 → docs/sprint-1/REVIEW.md)
+- 현재 단계: Sprint 1 구현 중 — S-1.1·S-1.2 완료, S-1.3 구현 완료(폰 확인 대기)
+- 다음 할 일: 폰에서 S-1.3 화면 흐름 확인 → S-1.4 흑백 → 컬러 전환 검증. Sprint 1 끝나면 스프린트 종료 대화(회고 → docs/sprint-1/REVIEW.md)
+- 게임 주소: https://obermine1-ops.github.io/lost-world-fragments/ / 저장소: https://github.com/obermine1-ops/lost-world-fragments
+- 푸시: 이 세션의 셸은 GitHub 로그인 창을 못 띄움 → 사용자 터미널 탭(run_in_terminal)에서 `git push` (첫 로그인 완료, 이후엔 저장된 인증 사용 가능성 높음)
 - 개발 서버: `.claude/launch.json`의 `game-dev` (node.exe로 vite 직접 실행 — 앱이 Node 설치 전에 켜져서 PATH에 node가 없을 수 있음)
 
 ## 아이디어 원문 요약
