@@ -1,4 +1,4 @@
-import { REGIONS, regionsOf, SEASONS } from './regions';
+import { REGIONS, firefliesOf, regionsOf, SEASONS } from './regions';
 import { RARE_ITEMS } from './items';
 import type { GameState } from './state';
 
@@ -25,6 +25,8 @@ export const FURNITURE: Furniture[] = [
   { id: 'stool', name: '작은 평상', sheet: 'element-sheet', frames: [117], from: 'village-f' },
   { id: 'lamp', name: '버섯 등', sheet: 'element-sheet', frames: [16], from: 'island-g' },
   { id: 'ball', name: '비치볼', sheet: 'element-sheet', frames: [167], from: 'season:summer' },
+  { id: 'firefly-jar', name: '봄 반딧불 유리병', sheet: 'element-sheet', frames: [169], from: 'fireflies:spring' },
+  { id: 'shell-lamp', name: '여름 반딧불 등', sheet: 'element-sheet', frames: [165], from: 'fireflies:summer' },
 ];
 
 // 방에 놓을 수 있는 것 = 가구 + 도감의 보석·희귀 아이템 (전시품)
@@ -38,9 +40,14 @@ export interface Placeable {
 
 export function ownedPlaceables(s: GameState): Placeable[] {
   const seasonDone = (key: string) => regionsOf(key as 'spring').every((r) => s.restored.includes(r.key));
-  const owned = FURNITURE.filter((f) =>
-    f.from === 'start' || (f.from.startsWith('season:') ? seasonDone(f.from.slice(7)) : s.restored.includes(f.from)),
-  );
+  const firefliesDone = (season: string) =>
+    s.fireflies.filter((id) => regionsOf(season as 'spring').some((r) => id.startsWith(`${r.key}-`))).length >= firefliesOf(season as 'spring');
+  const owned = FURNITURE.filter((f) => {
+    if (f.from === 'start') return true;
+    if (f.from.startsWith('season:')) return seasonDone(f.from.slice(7));
+    if (f.from.startsWith('fireflies:')) return firefliesDone(f.from.slice(10));
+    return s.restored.includes(f.from);
+  });
   return [
     ...owned.map((f) => ({ key: `f:${f.id}`, name: f.name, texture: f.sheet, frames: f.frames })),
     ...REGIONS.filter((r) => s.gems.includes(r.key)).map((r) => ({

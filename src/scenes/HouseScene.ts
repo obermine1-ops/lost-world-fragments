@@ -14,8 +14,9 @@ const CELL = 16 * SCALE;
 // 벽 (TilesetWallSimple, 10열): 왼위·위·오위 / 왼·오 / 왼아래·아래·오아래
 const WALL = { tl: 0, t: 2, tr: 4, l: 20, r: 24, bl: 40, b: 42, br: 44 };
 const FLOOR = 287; // 나무 마루 (TilesetInteriorFloor)
-const TRAY_COLS = 7;
-const TRAY_SLOT = 44;
+// 상자 한 줄 8칸 (물건이 30개쯤까지 4줄로 들어간다)
+const TRAY_COLS = 8;
+const TRAY_SLOT = 40;
 
 // 나의 집: 아래 상자에서 물건을 고르고, 방 바닥 칸을 눌러 놓는다.
 // 놓인 물건을 누르면 다시 집어 든다(옮기기). 집어 든 채로 상자를 누르면 치운다.
@@ -118,7 +119,7 @@ export class HouseScene extends Phaser.Scene {
       const bg = this.add.rectangle(x, y, TRAY_SLOT - 6, TRAY_SLOT - 6, 0x2a2738).setStrokeStyle(2, selected ? 0xffe9a8 : 0x45405a);
       bg.setInteractive({ useHandCursor: true }).on('pointerup', () => this.select(p));
       this.tray.add(bg);
-      const icon = this.drawPlaceable(p, x, y + 6, 1.4);
+      const icon = this.drawPlaceable(p, x, y + 6, 1.25);
       this.tray.add(icon);
     });
     if (free.length === 0) {

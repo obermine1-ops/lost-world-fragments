@@ -77,7 +77,7 @@ for (const name of MAPS) {
     });
   }
   const canBeforeRestore = reachable(closed);
-  for (const o of objects.filter((x) => ['gem', 'fragment', 'altar', 'pet', 'dig', 'house'].includes(x.name))) {
+  for (const o of objects.filter((x) => ['gem', 'fragment', 'altar', 'pet', 'dig', 'house', 'firefly'].includes(x.name))) {
     check(`${o.name} ${prop(o, 'reward') ?? prop(o, 'id') ?? ''} (${tileOf(o)})`, canBeforeRestore(o));
   }
   const stillClosed = closed.filter((id) => !restoreGates.includes(id));

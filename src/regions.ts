@@ -169,6 +169,13 @@ export const SEASONS: { key: Season; name: string; ending: string[] }[] = [
   },
 ];
 
+// 지역마다 숨은 반딧불 수 (지도: tools/build-maps.mjs의 fireflies)
+export const FIREFLIES_PER_REGION = 3;
+
+export function firefliesOf(season: Season) {
+  return regionsOf(season).length * FIREFLIES_PER_REGION;
+}
+
 export function regionsOf(season: Season) {
   return REGIONS.filter((r) => r.season === season);
 }

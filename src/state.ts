@@ -17,6 +17,8 @@ export interface GameState {
   items: string[];
   // 열린 길(돌무더기·잠긴 문·연잎 다리)
   opened: string[];
+  // 찾은 숨은 반딧불 (지역마다 3마리)
+  fireflies: string[];
   // 나의 집에 놓은 물건 (방 바닥 칸 x, y)
   house: { key: string; x: number; y: number }[];
 }
@@ -25,7 +27,7 @@ export const FIRST_MAP = 'meadow-a';
 export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g'] as const;
 
 export function newGame(): GameState {
-  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, dug: [], items: [], opened: [], house: [] };
+  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, dug: [], items: [], opened: [], fireflies: [], house: [] };
 }
 
 export const game = { state: newGame() };

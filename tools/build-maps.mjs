@@ -171,6 +171,22 @@ class MapBuilder {
     this.block(altar[0], altar[1]);
   }
 
+  // 숨은 반딧불 (구석에 숨겨 둔 수집품). 고른 칸이 막혀 있으면 가장 가까운 빈 풀밭 칸으로 옮긴다.
+  fireflies(spots) {
+    spots.forEach(([x0, y0], n) => {
+      for (let r = 0; r < 8; r++)
+        for (let dy = -r; dy <= r; dy++)
+          for (let dx = -r; dx <= r; dx++) {
+            const x = x0 + dx;
+            const y = y0 + dy;
+            if (!this.inside(x, y) || this.taken[this.i(x, y)] || this.collide[this.i(x, y)] || this.terrain[this.i(x, y)] !== 'grass') continue;
+            this.point('firefly', x, y, { id: `${this.name}-ff-${n + 1}` });
+            return;
+          }
+      throw new Error(`${this.name}: 반딧불 자리 없음 (${x0}, ${y0})`);
+    });
+  }
+
   // 너구리가 파낼 수 있는 흙더미. reward: 'gem'(이 지역 보석) 또는 희귀 아이템 id
   dig(x, y, reward) {
     this.point('dig', x, y, { id: `${this.name}-${x}-${y}`, reward });
@@ -328,6 +344,7 @@ function meadowA() {
   m.barrier(12, 2, 6, 2, { id: 'meadow-gate', unlock: 'restore:meadow-a', look: 'dead-tree' });
   m.treasures({ gem: [3, 29], fragment: [23, 8], altar: [17, 26] });
   m.point('pet', 7, 32, { kind: 'raccoon' });
+  m.fireflies([[2, 40], [27, 4], [26, 35]]);
   // 나의 집: 시작 지점 오른쪽. 문 앞에 서면 들어간다.
   m.stamp('house', MY_HOUSE, 17, 40, 2);
   m.point('house', 18, 43);
@@ -370,6 +387,7 @@ function forestB() {
   m.barrier(10, 2, 4, 2, { id: 'forest-gate', unlock: 'restore:forest-b', look: 'dead-tree' });
   m.treasures({ gem: [19, 25], fragment: [4, 19], altar: [14, 20] });
   m.dig(5, 28, 'letter');
+  m.fireflies([[2, 3], [21, 36], [8, 20]]);
   m.dig(20, 9, 'hourglass');
 
   const nearPath = (x, y) => x >= 9 && x <= 14;
@@ -406,6 +424,7 @@ function hillC() {
   m.treasures({ fragment: [15, 16], altar: [15, 13] });
   m.dig(4, 24, 'gem'); // 언덕의 보석은 땅속에 — 너구리가 있어야 찾을 수 있다
   m.dig(25, 22, 'picture-book');
+  m.fireflies([[3, 4], [27, 32], [2, 30]]);
   m.dig(22, 33, 'flower-seed');
   for (const [x, y] of [[13, 13], [17, 13], [12, 17], [18, 17]]) m.single(CRYSTALS, x, y, false, true);
   m.point('from-forest-b', 14, H - 3);
@@ -461,6 +480,7 @@ function ruinsD() {
 
   m.treasures({ gem: [20, 14], fragment: [4, 10], altar: [12, 8] });
   m.dig(3, 15, 'silver-key');
+  m.fireflies([[2, 33], [21, 3], [8, 18]]);
 
   m.point('from-hill-c', 11, H - 4);
   m.exit(10, H - 1, 4, 1, 'hill-c', 'from-ruins-d');
@@ -502,6 +522,7 @@ function beachE() {
   m.barrier(W - 3, 16, 2, 4, { id: 'beach-east', unlock: 'restore:beach-e', look: 'dead-tree' });
   m.treasures({ gem: [26, 24], fragment: [6, 19], altar: [14, 12] });
   m.dig(20, 22, 'old-coin');
+  m.fireflies([[2, 3], [27, 25], [2, 25]]);
 
   const keepClear = (x, y) => x >= 12 && x <= 16 && y < 14;
   m.scatter(ROCKS, 12, true, keepClear);
@@ -538,6 +559,7 @@ function villageF() {
   m.point('pet', 19, 25, { kind: 'frog' });
   m.treasures({ gem: [26, 6], fragment: [7, 19], altar: [14, 11] });
   m.dig(22, 16, 'gourd');
+  m.fireflies([[27, 3], [2, 26], [26, 24]]);
 
   // 남쪽 바다를 건너는 연잎 다리 (개구리와 함께 물가에 서면 생긴다) → 숨겨진 섬
   m.point('from-island-g', 14, 26);
@@ -578,6 +600,7 @@ function islandG() {
   m.treasures({ fragment: [19, 14], altar: [12, 15] });
   m.dig(6, 14, 'gem'); // 섬의 보석은 땅속에 — 너구리와 함께
   m.dig(10, 22, 'wooden-fish');
+  m.fireflies([[3, 4], [20, 25], [19, 5]]);
   for (const [x, y] of [[10, 16], [14, 16]]) m.single(CRYSTALS, x, y, false, true);
 
   const keepClear = (x, y) => x >= 12 && x <= 16 && y <= 8;

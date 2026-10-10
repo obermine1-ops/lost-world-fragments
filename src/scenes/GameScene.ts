@@ -8,7 +8,7 @@ import { ActorAnimator } from '../actor';
 import { NavGrid, type Point } from '../pathfinding';
 import { game } from '../state';
 import { saveGame } from '../save';
-import { REGIONS, regionOf, regionsOf, seasonOf, type Region } from '../regions';
+import { REGIONS, firefliesOf, regionOf, regionsOf, seasonOf, type Region } from '../regions';
 import { itemOf, withJosa } from '../items';
 import { PET_TEXTURE, Pet, type PetKind } from '../pet';
 import type { CollectionData } from './CollectionScene';
@@ -284,6 +284,10 @@ export class GameScene extends Phaser.Scene {
       }
       if (o.name === 'dig' && id && !state.dug.includes(id)) this.placeMound(o.x!, o.y!, id, prop(o, 'reward')!);
       if (o.name === 'barrier') this.placeBarrier(o);
+      if (o.name === 'firefly' && id && !state.fireflies.includes(id)) {
+        const ff = this.createFirefly(o.x!, o.y!);
+        this.onTouch(ff, () => this.collectFirefly(ff, id));
+      }
       // 나의 집 문 앞: 서면 들어간다.
       if (o.name === 'house') this.addSpot(o.x!, o.y!, TOUCH_REACH, () => this.enterHouse());
       // 지역 길목: 들어서면 화면이 어두워졌다가 다음 지역의 길목에서 나타난다.
@@ -317,6 +321,37 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: glow, scale: 1.5, alpha: 0.1, duration: 900, yoyo: true, repeat: -1 });
     this.tweens.add({ targets: gem, y: -3, duration: 1100, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
     return fragment;
+  }
+
+  // 숨은 반딧불: 작게, 가끔씩만 깜빡인다 (구석구석 둘러봐야 보인다)
+  private createFirefly(x: number, y: number) {
+    const color = this.region?.season === 'summer' ? 0x9ff7ff : 0xffb3e6;
+    const halo = this.add.circle(0, 0, 5, color, 0.25);
+    const dot = this.add.circle(0, 0, 1.6, 0xffffff);
+    const ff = this.add.container(x, y, [halo, dot]).setAlpha(0.15);
+    ff.setSize(12, 12);
+    sortByY(ff);
+    this.glow.add(ff);
+    this.physics.add.existing(ff, true);
+    this.tweens.add({ targets: ff, alpha: 1, duration: 500, yoyo: true, hold: 300, repeat: -1, repeatDelay: Phaser.Math.Between(1200, 2400) });
+    this.tweens.add({ targets: [halo, dot], y: -3, duration: 1400, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
+    return ff;
+  }
+
+  private collectFirefly(ff: Phaser.GameObjects.Container, id: string) {
+    this.pickupEffect(ff);
+    sfx(this, 'gem', 0.35);
+    game.state.fireflies.push(id);
+    this.savePosition();
+    const season = this.region?.season ?? 'spring';
+    const keys = regionsOf(season).map((r) => r.key);
+    const found = game.state.fireflies.filter((f) => keys.some((k) => f.startsWith(`${k}-`))).length;
+    const total = firefliesOf(season);
+    this.showMessage(`숨은 반딧불을 찾았다 (${seasonOf(season).name} ${found}/${total})`);
+    if (found === total) {
+      const gift = furnitureFrom(`fireflies:${season}`).map((f) => f.name).join(', ');
+      this.time.delayedCall(2600, () => this.showMessage(`${seasonOf(season).name}의 반딧불을 모두 찾았다!\n새 가구: ${gift}`));
+    }
   }
 
   private createGem(x: number, y: number, region: Region) {

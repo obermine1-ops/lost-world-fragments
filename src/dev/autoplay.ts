@@ -9,6 +9,9 @@ type Obj = Phaser.Types.Tilemaps.TiledObject;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyScene = any;
 
+// 계절의 마지막 지역을 복원해 요약 화면까지 간 경우 (그 지역의 남은 순서는 건너뛴다)
+class SeasonEnded extends Error {}
+
 const ROUTE = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g'];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -94,12 +97,33 @@ export function installAutoplay(game: Phaser.Game) {
       g().moveTo(x, y);
       await waitFor(() => !active('Game') || g().leaving || (g().path.length === 0 && !g().busy), 90000, `걷기: ${label}`);
       await sleep(120);
-      if (!active('Game') || g().leaving || active('Puzzle')) return;
+      // 지나가다 제단에 닿아 퍼즐이 열리면(보석·조각을 이미 가진 경우) 그 자리에서 풀고 이어서 걷는다.
+      if (active('Puzzle')) {
+        await restoreSequence();
+        continue;
+      }
+      if (!active('Game') || g().leaving) return;
       const b = g().player.body.center;
       if (Math.hypot(b.x - x, b.y - y) <= reach) return;
       await sleep(200);
     }
     if (mustArrive) throw new Error(`도착 못 함: ${label}`);
+  }
+
+  // 퍼즐 → 기억 장면 → 색 복원. 계절의 마지막 지역이면 엔딩 글 → 요약 화면까지 가고 SeasonEnded를 던진다.
+  async function restoreSequence() {
+    const map = progress.state.map;
+    await solvePuzzle();
+    await finishMemory();
+    await waitFor(() => progress.state.restored.includes(map), 10000, '색 복원');
+    note(`색 복원: ${map}`);
+    await waitFor(() => (active('Game') && !g().busy) || active('Memory') || active('End'), 20000, '복원 연출');
+    if (active('Memory') || active('End') || g().busy) {
+      if (!active('End')) await finishMemory();
+      await waitFor(() => active('End'), 15000, '요약 화면');
+      note('계절 엔딩 → 요약 화면');
+      throw new SeasonEnded();
+    }
   }
 
   async function playRegion(map: string) {
@@ -134,7 +158,13 @@ export function installAutoplay(game: Phaser.Game) {
       await waitFor(() => s.opened.includes(prop(o, 'id')!), 5000, '문 열림');
       note('문 열림');
     }
-    // 4) 보석·조각
+    // 4) 숨은 반딧불 (조각을 줍기 전에 — 지나가다 제단이 먼저 열리지 않게)
+    for (const o of of('firefly')) {
+      if (s.fireflies.includes(prop(o, 'id')!)) continue;
+      await walkTo(o.x!, o.y!, `반딧불 ${prop(o, 'id')}`);
+      await waitFor(() => s.fireflies.includes(prop(o, 'id')!), 3000, '반딧불 줍기');
+    }
+    // 5) 보석·조각
     for (const o of of('gem')) {
       if (s.gems.includes(prop(o, 'id')!)) continue;
       await walkTo(o.x!, o.y!, '보석');
@@ -145,23 +175,13 @@ export function installAutoplay(game: Phaser.Game) {
       await walkTo(o.x!, o.y!, '조각');
       await waitFor(() => s.fragments.includes(prop(o, 'id')!), 3000, '조각 줍기');
     }
-    note('보석·조각 모음');
+
+    note('보석·조각·반딧불 모음');
     // 5) 제단 → 퍼즐 → 기억 → 색 복원
     const altar = of('altar')[0];
     if (altar && !s.restored.includes(map)) {
       await walkTo(altar.x!, altar.y! + 16, '제단', 20, false);
-      await solvePuzzle();
-      await finishMemory();
-      await waitFor(() => s.restored.includes(map), 10000, '색 복원');
-      note(`색 복원: ${map}`);
-      // 계절의 마지막 지역이면 엔딩 글 → 요약 화면
-      await waitFor(() => !g().busy || active('Memory') || active('End'), 20000, '복원 연출');
-      if (active('Memory') || g().busy) {
-        await finishMemory();
-        await waitFor(() => active('End'), 15000, '요약 화면');
-        note('계절 엔딩 → 요약 화면');
-        return;
-      }
+      if (!s.restored.includes(map)) await restoreSequence();
     }
     // 6) 연잎 다리
     for (const o of of('barrier').filter((b) => prop(b, 'look') === 'lilypad')) {
@@ -205,7 +225,11 @@ export function installAutoplay(game: Phaser.Game) {
           button.emit('pointerup');
           note("'여름으로' 누름");
         }
-        await playRegion(map);
+        try {
+          await playRegion(map);
+        } catch (e) {
+          if (!(e instanceof SeasonEnded)) throw e;
+        }
       }
       await waitFor(() => active('End'), 20000, '여름 요약 화면');
       note('✅ 여름 엔딩까지 완주');

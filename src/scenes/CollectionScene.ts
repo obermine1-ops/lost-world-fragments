@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FONT, addButton, fadeIn } from '../ui';
 import { game } from '../state';
-import { SEASONS, regionsOf, type Season } from '../regions';
+import { SEASONS, firefliesOf, regionsOf, type Season } from '../regions';
 import { RARE_ITEMS } from '../items';
 import type { MemoryData } from './MemoryScene';
 
@@ -74,8 +74,14 @@ export class CollectionScene extends Phaser.Scene {
       });
     });
 
+    const ffKeys = regions.map((r) => r.key);
+    const ff = s.fireflies.filter((f) => ffKeys.some((k) => f.startsWith(`${k}-`))).length;
+    this.add
+      .text(width / 2, y + 86, `숨은 반딧불 ${ff} / ${firefliesOf(season)}`, { fontFamily: FONT, fontSize: '13px', color: '#ffb3e6' })
+      .setOrigin(0.5);
+
     this.info = this.add
-      .text(width / 2, y + 90, '칸을 눌러 보세요', {
+      .text(width / 2, y + 108, '칸을 눌러 보세요', {
         fontFamily: FONT,
         fontSize: '14px',
         color: '#d8c9a3',
