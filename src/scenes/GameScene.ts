@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { FONT, addButton, fadeIn, fadeTo } from '../ui';
+import { FONT, addButton, addMuteButton, fadeIn, fadeTo } from '../ui';
+import { music, sfx } from '../sound';
 import { WorldColor } from '../worldColor';
 import type { PuzzleData } from './PuzzleScene';
 import type { MemoryData } from './MemoryScene';
@@ -79,6 +80,7 @@ export class GameScene extends Phaser.Scene {
   private progressDistance = 0;
   private fpsText?: Phaser.GameObjects.Text;
   private hudText!: Phaser.GameObjects.Text;
+  private goalText!: Phaser.GameObjects.Text;
   private color!: WorldColor;
   private leaving = false;
   private busy = false; // 제단 연출·퍼즐 중
@@ -176,6 +178,10 @@ export class GameScene extends Phaser.Scene {
     // 개발용 UI(FPS, 테스트 버튼)는 개발 서버에서만 보이고 배포본에는 없다.
     if (import.meta.env.DEV) this.createDevUi(width, height);
 
+    // 처음 시작한 순간(아직 한 번도 저장된 위치가 없음)에만 조작 안내를 보여 준다.
+    const firstTime = !data.spawn && state.x === undefined && state.map === 'meadow-a';
+    this.playRegionMusic();
+
     // 지역에 들어오면 저장. 걷는 동안에도 가끔, 앱을 내리거나 끌 때도 위치를 저장한다.
     this.savePosition();
     this.lastSaveAt = this.time.now;
@@ -190,10 +196,12 @@ export class GameScene extends Phaser.Scene {
     const title = mapProps.find((p) => p.name === 'title')?.value as string | undefined;
     if (mapProps.find((p) => p.name === 'dark')?.value) this.addDarkness(width, height);
     if (title) this.time.delayedCall(300, () => this.showMessage(title));
+    const tapHint = firstTime ? this.showTapHint(width, height) : undefined;
 
     // 버튼 위를 누른 경우는 이동으로 치지 않는다.
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       if (over.length > 0 || this.busy) return;
+      tapHint?.destroy();
       const p = cam.getWorldPoint(pointer.x, pointer.y);
       this.moveTo(p.x, p.y);
     });
@@ -363,6 +371,7 @@ export class GameScene extends Phaser.Scene {
   // 막힌 길을 연다 (기록해 두어 다시 막히지 않는다)
   private openBarrier(id: string) {
     if (!game.state.opened.includes(id)) game.state.opened.push(id);
+    sfx(this, 'secret', 0.5);
     this.removeBarriers((b) => b.id === id);
     this.savePosition();
   }
@@ -398,6 +407,7 @@ export class GameScene extends Phaser.Scene {
 
   private collectFragment(fragment: Phaser.GameObjects.Container, id: string) {
     this.pickupEffect(fragment);
+    sfx(this, 'pickup');
     game.state.fragments.push(id);
     this.savePosition();
     this.updateHud();
@@ -406,6 +416,7 @@ export class GameScene extends Phaser.Scene {
 
   private collectGem(gem: Phaser.GameObjects.Container, id: string, region: Region) {
     this.pickupEffect(gem);
+    sfx(this, 'gem');
     game.state.gems.push(id);
     this.savePosition();
     this.updateHud();
@@ -445,6 +456,7 @@ export class GameScene extends Phaser.Scene {
       // 동료가 된 순간 너구리에게 먼저 색이 돌아온다.
       this.tweens.add({ targets: this.pet!.sprite, scale: 1.4, duration: 250, yoyo: true });
       game.state.pet = true;
+      sfx(this, 'pet');
       this.savePosition();
       this.showMessage('외로워 보이던 너구리가\n졸졸 따라오기 시작했다');
       this.time.delayedCall(2700, () => this.showMessage('너구리와 함께라면\n흙더미를 파 볼 수 있을 것 같다'));
@@ -454,8 +466,18 @@ export class GameScene extends Phaser.Scene {
   // 동료 너구리는 흑백 세상에서도 컬러로 보인다.
   private addPet(x: number, y: number) {
     this.pet = new Pet(this, x, y);
-    sortByY(this.pet.sprite);
-    this.glow.add(this.pet.sprite);
+    const sprite = this.pet.sprite;
+    sortByY(sprite);
+    this.glow.add(sprite);
+    // 너구리를 탭하면 쓰다듬어 준다 (하트)
+    sprite.setInteractive({ useHandCursor: true }).on('pointerup', () => {
+      sfx(this, 'pet', 0.5);
+      this.tweens.add({ targets: sprite, scaleY: 0.8, duration: 90, yoyo: true, repeat: 1 });
+      const heart = this.add.text(sprite.x, sprite.y - 10, '♥', { fontFamily: FONT, fontSize: '10px', color: '#ff7aa2' });
+      heart.setOrigin(0.5).setDepth(DEPTH.above).setResolution(4);
+      this.glow.add(heart);
+      this.tweens.add({ targets: heart, y: heart.y - 12, alpha: 0, duration: 900, onComplete: () => heart.destroy() });
+    });
   }
 
   // ── 흙더미 ───────────────────────────────────────────────
@@ -468,7 +490,7 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: mound, y: y - 1, duration: 120, yoyo: true, repeat: 1, repeatDelay: 80, loop: -1, loopDelay: 2200 });
     const spot = this.addSpot(x, y, TOUCH_REACH + 4, () => {
       if (!this.pet) {
-        this.showMessage('흙이 볼록 솟아 있다…\n무언가 묻혀 있는 것 같다');
+        this.showMessage('흙이 볼록 솟아 있다…\n땅을 잘 파는 친구가 있으면 좋을 텐데');
         return;
       }
       this.spots = this.spots.filter((s) => s !== spot);
@@ -483,6 +505,7 @@ export class GameScene extends Phaser.Scene {
     this.stopMoving();
     pet.runTo(mound.x - 6, mound.y + 2, () => {
       pet.sprite.setFlipX(false);
+      sfx(this, 'dig', 0.7);
       this.tweens.add({ targets: pet.sprite, x: pet.sprite.x + 1.5, duration: 60, yoyo: true, repeat: 7 });
       for (let i = 0; i < 6; i++) {
         const dust = this.add.circle(mound.x, mound.y + 2, 1.5, 0xc9a26b).setDepth(DEPTH.above);
@@ -516,6 +539,7 @@ export class GameScene extends Phaser.Scene {
     }
     const region = this.region;
     const isGem = reward === 'gem' && region;
+    sfx(this, isGem ? 'gem' : 'pickup');
     const texture = isGem ? `gem-${region.gem}` : `item-${reward}`;
     const icon = this.add.image(x, y, texture).setDepth(DEPTH.above);
     this.glow.add(icon);
@@ -611,6 +635,8 @@ export class GameScene extends Phaser.Scene {
     game.state.restored.push(region.key);
     this.savePosition();
     this.updateHud();
+    sfx(this, 'restore', 0.7);
+    this.playRegionMusic();
     this.color.restore(() => {
       this.removeBarriers((b) => b.unlock === `restore:${region.key}`);
       const done = REGIONS.every((r) => game.state.restored.includes(r.key));
@@ -679,9 +705,60 @@ export class GameScene extends Phaser.Scene {
       padding: { x: 8, y: 5 },
     });
     this.ui.add(this.hudText);
+    this.goalText = this.add.text(8, 38, '', {
+      fontFamily: FONT,
+      fontSize: '12px',
+      color: '#ffe9a8',
+      backgroundColor: '#00000066',
+      padding: { x: 8, y: 4 },
+      wordWrap: { width: this.scale.width - 120 },
+    });
+    this.ui.add(this.goalText);
     this.updateHud();
 
     this.ui.add(addButton(this, this.scale.width - 40, 24, '도감', () => this.openCollection(), 64, 32));
+    this.ui.add(addMuteButton(this, this.scale.width - 48, 62));
+  }
+
+  // 지금 무엇을 하면 되는지 한 줄로 알려 준다.
+  private currentGoal() {
+    const s = game.state;
+    const r = this.region;
+    if (!r) return '';
+    if (s.restored.includes(r.key)) {
+      const next = REGIONS[REGIONS.indexOf(r) + 1];
+      if (!next) return '봄을 모두 되찾았다';
+      return s.restored.includes(next.key) ? '' : '목표: 열린 길을 따라 다음 장소로';
+    }
+    if (!s.gems.includes(r.key)) {
+      if (r.key === 'hill-c' && !s.pet) return '목표: 땅을 파는 친구가 필요하다 (들판의 너구리)';
+      return `목표: 이곳 어딘가의 ${r.gemName} 보석 찾기`;
+    }
+    if (!s.fragments.includes(r.key)) return '목표: 흩어진 기억의 조각 찾기';
+    return '목표: 제단에 보석 끼우기';
+  }
+
+  private playRegionMusic() {
+    const r = this.region;
+    if (!r) return;
+    if (game.state.restored.includes(r.key)) music(this.game, 'spring');
+    else music(this.game, r.key === 'ruins-d' ? 'ruins' : 'gray');
+  }
+
+  // 처음 시작했을 때: 손가락 모양 안내가 깜빡이다가, 화면을 한 번 탭하면 사라진다.
+  private showTapHint(width: number, height: number) {
+    const hint = this.add
+      .text(width / 2, height * 0.68, '👆 가고 싶은 곳을 탭해 보세요', {
+        fontFamily: FONT,
+        fontSize: '16px',
+        color: '#ffffff',
+        backgroundColor: '#000000aa',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5);
+    this.ui.add(hint);
+    this.tweens.add({ targets: hint, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
+    return hint;
   }
 
   private openCollection() {
@@ -700,6 +777,8 @@ export class GameScene extends Phaser.Scene {
     const s = game.state;
     const total = REGIONS.length;
     this.hudText.setText(`◆ 조각 ${s.fragments.length}/${total}   ● 보석 ${s.gems.length}/${total}   ✿ 봄 ${s.restored.length}/${total}`);
+    const goal = this.currentGoal();
+    this.goalText.setText(goal).setVisible(goal !== '');
   }
 
   // 화면 가운데에 잠깐 떠올랐다 사라지는 안내 문구
@@ -758,15 +837,15 @@ export class GameScene extends Phaser.Scene {
 
     const color = this.color;
     this.ui.add(
-      addButton(this, width - 70, 70, '색 (테스트)', () => {
+      addButton(this, width - 70, 108, '색 (테스트)', () => {
         if (color.isAnimating) return;
         if (color.isGray) color.restore();
         else color.fade();
       }, 120, 36),
     );
     const region = this.region ?? REGIONS[0];
-    this.ui.add(addButton(this, width - 70, 112, '퍼즐 (테스트)', () => this.openPuzzle(region, false), 120, 36));
-    this.ui.add(addButton(this, width - 70, 154, '끝내기 (테스트)', () => fadeTo(this, 'End'), 120, 36));
+    this.ui.add(addButton(this, width - 70, 150, '퍼즐 (테스트)', () => this.openPuzzle(region, false), 120, 36));
+    this.ui.add(addButton(this, width - 70, 192, '끝내기 (테스트)', () => fadeTo(this, 'End'), 120, 36));
   }
 
   // 어두운 곳(유적): 화면 가장자리가 어둡고 가운데(캐릭터 주변)만 밝다.

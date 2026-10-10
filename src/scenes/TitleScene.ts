@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { FONT, addButton, fadeIn, fadeTo } from '../ui';
+import { FONT, addButton, addMuteButton, fadeIn, fadeTo } from '../ui';
+import { music } from '../sound';
 import { game, newGame } from '../state';
 import { clearSave, loadGame } from '../save';
 import { INTRO_LINES } from '../regions';
@@ -31,6 +32,16 @@ export class TitleScene extends Phaser.Scene {
         color: '#999999',
       })
       .setOrigin(0.5);
+
+    music(this.game, 'quiet');
+    addMuteButton(this, width - 52, height - 30);
+    this.add
+      .text(12, height - 30, '그림·음악: Ninja Adventure (Pixel-boy & AAA, CC0)', {
+        fontFamily: FONT,
+        fontSize: '10px',
+        color: '#666666',
+      })
+      .setOrigin(0, 0.5);
 
     const saved = loadGame();
     if (!saved) {

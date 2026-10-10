@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { setMuted, sfx } from './sound';
 
 export const FONT = 'sans-serif';
 const FADE_MS = 400;
@@ -42,7 +43,18 @@ export function addButton(
   button.on('pointerout', () => bg.setFillStyle(0x000000, 0.35));
   button.on('pointerup', () => {
     bg.setFillStyle(0x000000, 0.35);
+    sfx(scene, 'click', 0.35);
     onTap();
   });
+  return button;
+}
+
+// 소리 켜기/끄기 버튼 (설정은 기기에 기억)
+export function addMuteButton(scene: Phaser.Scene, x: number, y: number) {
+  const label = () => (scene.game.sound.mute ? '소리 꺼짐' : '소리 켜짐');
+  const button = addButton(scene, x, y, label(), () => {
+    setMuted(scene.game, !scene.game.sound.mute);
+    (button.list[1] as Phaser.GameObjects.Text).setText(label());
+  }, 84, 32);
   return button;
 }

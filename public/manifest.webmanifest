@@ -1,0 +1,16 @@
+{
+  "name": "잃어버린 세계의 조각",
+  "short_name": "세계의 조각",
+  "description": "색과 기억이 사라진 세상을 탐험하며 기억의 조각을 모아 봄을 되찾는 힐링 게임",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "lang": "ko",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

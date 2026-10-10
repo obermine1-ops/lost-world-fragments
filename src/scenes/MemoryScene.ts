@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FONT, fadeIn } from '../ui';
+import { sfx } from '../sound';
 
 export interface MemoryData {
   face?: string; // 얼굴 그림 키 (없으면 글만)
@@ -20,6 +21,7 @@ export class MemoryScene extends Phaser.Scene {
   create(data: MemoryData) {
     const { width, height } = this.scale;
     fadeIn(this);
+    sfx(this, 'memory', 0.5);
     this.add.rectangle(0, 0, width, height, 0x0e0c16, 0.94).setOrigin(0).setInteractive();
 
     let y = height * 0.2;

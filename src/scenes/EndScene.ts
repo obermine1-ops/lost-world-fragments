@@ -3,6 +3,7 @@ import { FONT, fadeIn, fadeTo } from '../ui';
 import { game } from '../state';
 import { REGIONS } from '../regions';
 import { RARE_ITEMS } from '../items';
+import { music } from '../sound';
 
 export class EndScene extends Phaser.Scene {
   constructor() {
@@ -13,6 +14,7 @@ export class EndScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const s = game.state;
     fadeIn(this);
+    music(this.game, 'end');
 
     this.add
       .text(width / 2, height * 0.3, '봄을 되찾았다', { fontFamily: FONT, fontSize: '32px', color: '#ffffff' })

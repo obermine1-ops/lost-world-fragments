@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FONT, fadeIn } from '../ui';
+import { sfx } from '../sound';
 
 export interface PuzzleData {
   // 짝의 개수. 카드 수는 그 두 배 (Sprint 1은 2쌍 = 4장, Sprint 3에서 늘어난다)
@@ -11,17 +12,8 @@ const FLIP_MS = 120;
 const MISMATCH_MS = 700;
 const CARD_GAP = 16;
 
-type SymbolMaker = (scene: Phaser.Scene) => Phaser.GameObjects.Shape;
-
-// 카드 앞면 그림 (임시 도형. 나중에 기억 장면 조각 그림으로 바뀐다)
-const SYMBOLS: SymbolMaker[] = [
-  (s) => s.add.circle(0, 0, 22, 0xff7aa2),
-  (s) => s.add.triangle(0, 0, 0, 40, 24, 0, 48, 40, 0xffc93c),
-  (s) => s.add.rectangle(0, 0, 32, 32, 0x4fc3ff).setAngle(45),
-  (s) => s.add.star(0, 0, 5, 10, 24, 0xa77bff),
-  (s) => s.add.ellipse(0, 0, 50, 26, 0x58d68d),
-  (s) => s.add.star(0, 0, 8, 12, 22, 0xff8c42),
-];
+// 카드 앞면 그림: 봄의 꽃과 수정 (TilesetNature의 낱개 그림을 3배로)
+const SYMBOLS = [264, 267, 270, 266, 338, 336];
 
 interface Card {
   container: Phaser.GameObjects.Container;
@@ -97,7 +89,7 @@ export class PuzzleScene extends Phaser.Scene {
     ]);
     const front = this.add.container(0, 0, [
       this.add.rectangle(0, 0, w, h, 0xf5efe0).setStrokeStyle(3, 0xd8c9a3),
-      SYMBOLS[symbol](this),
+      this.add.image(0, 0, 'nature-sheet', SYMBOLS[symbol]).setScale(Math.min(3.5, (w * 0.7) / 16)),
     ]);
     front.setVisible(false);
 
@@ -113,6 +105,7 @@ export class PuzzleScene extends Phaser.Scene {
     if (this.busy || card.faceUp || card.matched) return;
 
     this.flip(card, true);
+    sfx(this, 'flip', 0.5);
     this.opened.push(card);
     if (this.opened.length < 2) return;
 
@@ -121,6 +114,7 @@ export class PuzzleScene extends Phaser.Scene {
 
     if (a.symbol === b.symbol) {
       a.matched = b.matched = true;
+      this.time.delayedCall(FLIP_MS * 2, () => sfx(this, 'match', 0.5));
       this.celebrate(a);
       this.celebrate(b);
       if (this.cards.every((c) => c.matched)) this.time.delayedCall(500, () => this.finish());
@@ -165,6 +159,7 @@ export class PuzzleScene extends Phaser.Scene {
 
   private finish() {
     const { width, height } = this.scale;
+    sfx(this, 'success', 0.6);
     const message = this.add
       .text(width / 2, height / 2, '기억이 돌아왔다', {
         fontFamily: FONT,

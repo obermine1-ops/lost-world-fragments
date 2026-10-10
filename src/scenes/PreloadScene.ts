@@ -4,6 +4,7 @@ import { DIRECTIONS } from '../actor';
 import { MAPS } from '../state';
 import { REGIONS } from '../regions';
 import { RARE_ITEMS } from '../items';
+import { SFX } from '../sound';
 
 // 게임에 필요한 그림·지도를 처음에 한 번 불러온다.
 export class PreloadScene extends Phaser.Scene {
@@ -33,6 +34,7 @@ export class PreloadScene extends Phaser.Scene {
     this.load.spritesheet('pet', 'assets/actors/pet.png', tile);
     this.load.image('face-pet', 'assets/actors/pet-face.png');
     for (const item of RARE_ITEMS) this.load.image(`item-${item.id}`, `assets/items/${item.id}.png`);
+    for (const key of SFX) this.load.audio(`sfx-${key}`, `assets/audio/sfx-${key}.wav`);
     for (const r of REGIONS) {
       this.load.image(`gem-${r.gem}`, `assets/items/gem-${r.gem}.png`);
       this.load.image(`face-${r.memory.face}`, `assets/faces/${r.memory.face}.png`);
@@ -43,6 +45,7 @@ export class PreloadScene extends Phaser.Scene {
     this.createActorAnims('hero');
     // 동물 그림은 옆모습 2프레임 (오른쪽을 보고 있음 — 왼쪽으로 갈 때는 뒤집는다)
     this.anims.create({ key: 'pet-walk', frames: this.anims.generateFrameNumbers('pet', { frames: [0, 1] }), frameRate: 6, repeat: -1 });
+    this.scene.launch('Audio'); // 배경 음악은 뒤에서 불러온다
     this.scene.start('Title');
   }
 
