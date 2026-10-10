@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FONT } from '../ui';
+import { DIRECTIONS } from '../actor';
 
 // 게임에 필요한 그림·지도를 처음에 한 번 불러온다.
 export class PreloadScene extends Phaser.Scene {
@@ -22,6 +23,19 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create() {
+    this.createActorAnims('hero');
     this.scene.start('Title');
+  }
+
+  // 캐릭터 그림(4열 × 7행)은 열이 방향(아래·위·왼·오), 1~4행이 걷기 프레임이다.
+  private createActorAnims(key: string) {
+    DIRECTIONS.forEach((dir, col) => {
+      this.anims.create({
+        key: `${key}-walk-${dir}`,
+        frames: this.anims.generateFrameNumbers(key, { frames: [0, 1, 2, 3].map((row) => row * 4 + col) }),
+        frameRate: 8,
+        repeat: -1,
+      });
+    });
   }
 }

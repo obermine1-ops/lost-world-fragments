@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { FONT, addButton, fadeIn, fadeTo } from '../ui';
 import { WorldColor } from '../worldColor';
 import type { PuzzleData } from './PuzzleScene';
+import { ActorAnimator } from '../actor';
 
 // 타일 16px 그림을 2배로 확대해 보여준다. (폰 화면에 가로 약 11칸 × 세로 20칸)
 const ZOOM = 2;
@@ -14,12 +15,18 @@ const TOTAL_FRAGMENTS = 1;
 // 그리는 순서 (숫자가 클수록 위)
 const DEPTH = { ground: 0, decor: 1, marker: 5, actor: 10, above: 20 };
 
+// 캐릭터·물건끼리는 화면 아래쪽(y가 큰 쪽)에 있는 것이 앞에 보이게 한다.
+function sortByY(obj: Phaser.GameObjects.Components.Depth & { y: number }) {
+  obj.setDepth(DEPTH.actor + obj.y / 10000);
+}
+
 // 들판 탐험 장면.
 // 화면은 카메라 두 대로 나눠 그린다: 들판 카메라(확대 + 흑백 효과)와 UI 카메라(원래 크기, 항상 컬러).
 export class GameScene extends Phaser.Scene {
   private world!: Phaser.GameObjects.Layer;
   private ui!: Phaser.GameObjects.Layer;
   private player!: Phaser.GameObjects.Sprite;
+  private playerAnim!: ActorAnimator;
   private target?: Phaser.Math.Vector2;
   private progressCheckAt = 0;
   private progressDistance = 0;
@@ -62,8 +69,9 @@ export class GameScene extends Phaser.Scene {
     };
 
     const start = spot('start');
-    this.player = this.add.sprite(start.x, start.y, 'hero', 0).setDepth(DEPTH.actor);
+    this.player = this.add.sprite(start.x, start.y, 'hero', 0);
     this.world.add(this.player);
+    this.playerAnim = new ActorAnimator(this.player, 'hero');
     this.physics.add.existing(this.player);
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     // 발밑만 부딪히게 해서 나무 윗부분 뒤로는 지나갈 수 있게 한다.
@@ -105,6 +113,9 @@ export class GameScene extends Phaser.Scene {
 
   update() {
     this.fpsText?.setText(`FPS ${Math.round(this.game.loop.actualFps)}`);
+    const velocity = (this.player.body as Phaser.Physics.Arcade.Body).velocity;
+    this.playerAnim.update(velocity.x, velocity.y);
+    sortByY(this.player);
 
     if (!this.target) return;
     const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.target.x, this.target.y);
@@ -141,8 +152,9 @@ export class GameScene extends Phaser.Scene {
   private createFragment(x: number, y: number) {
     const glow = this.add.circle(0, 0, 9, 0xfff3b0, 0.35);
     const gem = this.add.rectangle(0, 0, 7, 7, 0x9be7ff).setStrokeStyle(1, 0xffffff).setAngle(45);
-    const fragment = this.add.container(x, y, [glow, gem]).setDepth(DEPTH.actor);
+    const fragment = this.add.container(x, y, [glow, gem]);
     fragment.setSize(14, 14);
+    sortByY(fragment);
     this.world.add(fragment);
     this.physics.add.existing(fragment, true);
 
