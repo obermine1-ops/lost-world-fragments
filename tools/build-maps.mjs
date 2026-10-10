@@ -11,6 +11,7 @@ const TILESETS = [
   { key: 'water', name: 'TilesetWater', file: 'TilesetWater.png', w: 448, h: 272, columns: 28, count: 476 },
   { key: 'nature', name: 'TilesetNature', file: 'TilesetNature.png', w: 384, h: 336, columns: 24, count: 504 },
   { key: 'ruins', name: 'TilesetVillageAbandoned', file: 'TilesetVillageAbandoned.png', w: 320, h: 192, columns: 20, count: 240 },
+  { key: 'house', name: 'TilesetHouse', file: 'TilesetHouse.png', w: 528, h: 368, columns: 33, count: 759 },
 ];
 const FIRST_GID = {};
 {
@@ -45,6 +46,8 @@ const RUINS = {
   shrine: [[14, 15, 16], [34, 35, 36], [54, 55, 56]], // 주황 지붕 사당
 };
 const RUBBLE = [86, 87, 88, 89, 90]; // 돌무더기 (TilesetVillageAbandoned)
+// 나의 집 (TilesetHouse, 4×3, 아랫줄 가운데가 문)
+const MY_HOUSE = [[0, 1, 2, 3], [33, 34, 35, 36], [66, 67, 68, 69]];
 const TREES = {
   green: [16, 17, 40, 41],
   cherry: [14, 15, 38, 39],
@@ -325,6 +328,10 @@ function meadowA() {
   m.barrier(12, 2, 6, 2, { id: 'meadow-gate', unlock: 'restore:meadow-a', look: 'dead-tree' });
   m.treasures({ gem: [3, 29], fragment: [23, 8], altar: [17, 26] });
   m.point('pet', 7, 32, { kind: 'raccoon' });
+  // 나의 집: 시작 지점 오른쪽. 문 앞에 서면 들어간다.
+  m.stamp('house', MY_HOUSE, 17, 40, 2);
+  m.point('house', 18, 43);
+  m.point('from-house', 18, 45);
   m.dig(25, 30, 'pan-flute');
 
   const nearPath = (x, y) => x >= 12 && x <= 16;

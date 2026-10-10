@@ -12,6 +12,7 @@ import { REGIONS, regionOf, regionsOf, seasonOf, type Region } from '../regions'
 import { itemOf, withJosa } from '../items';
 import { PET_TEXTURE, Pet, type PetKind } from '../pet';
 import type { CollectionData } from './CollectionScene';
+import { furnitureFrom } from '../furniture';
 
 // 타일 16px 그림을 2배로 확대해 보여준다. (폰 화면에 가로 약 11칸 × 세로 20칸)
 const ZOOM = 2;
@@ -118,6 +119,7 @@ export class GameScene extends Phaser.Scene {
       map.addTilesetImage('TilesetWater', 'tiles-water')!,
       map.addTilesetImage('TilesetNature', 'tiles-nature')!,
       map.addTilesetImage('TilesetVillageAbandoned', 'tiles-ruins')!,
+      map.addTilesetImage('TilesetHouse', 'tiles-house')!,
     ];
     const layer = (name: string, depth: number) => {
       const l = map.createLayer(name, tilesets)!.setDepth(depth);
@@ -279,6 +281,8 @@ export class GameScene extends Phaser.Scene {
       }
       if (o.name === 'dig' && id && !state.dug.includes(id)) this.placeMound(o.x!, o.y!, id, prop(o, 'reward')!);
       if (o.name === 'barrier') this.placeBarrier(o);
+      // 나의 집 문 앞: 서면 들어간다.
+      if (o.name === 'house') this.addSpot(o.x!, o.y!, TOUCH_REACH, () => this.enterHouse());
       // 지역 길목: 들어서면 화면이 어두워졌다가 다음 지역의 길목에서 나타난다.
       if (o.name === 'exit') {
         const zone = this.add.zone(o.x!, o.y!, o.width!, o.height!).setOrigin(0);
@@ -485,7 +489,10 @@ export class GameScene extends Phaser.Scene {
   // ── 다가가면 반응하는 지점 (제단·너구리·흙더미) ───────────────
 
   private addSpot(x: number, y: number, reach: number, onReach: () => void) {
-    const spot: Spot = { x, y, reach, near: false, onReach };
+    // 이미 그 근처에 서 있는 채로 생기면(예: 집에서 나오자마자) 한 번 멀어졌다가 다시 와야 반응한다.
+    const feet = (this.player.body as Phaser.Physics.Arcade.Body).center;
+    const near = Phaser.Math.Distance.Between(feet.x, feet.y, x, y) < reach;
+    const spot: Spot = { x, y, reach, near, onReach };
     this.spots.push(spot);
     return spot;
   }
@@ -722,6 +729,10 @@ export class GameScene extends Phaser.Scene {
       const season = seasonOf(region.season);
       const done = regionsOf(region.season).every((r) => game.state.restored.includes(r.key));
       this.showMessage(done ? `${season.name}이 모두 돌아왔다` : '색이 돌아왔다!\n막혀 있던 길이 열린 것 같다');
+      // 복원 보상: 나의 집에 놓을 가구
+      const gifts = [...furnitureFrom(region.key), ...(done ? furnitureFrom(`season:${region.season}`) : [])];
+      if (gifts.length)
+        this.time.delayedCall(2600, () => this.showMessage(`새 가구를 얻었다: ${gifts.map((f) => f.name).join(', ')}\n(봄 들판의 나의 집에 놓을 수 있다)`));
       if (!done) {
         this.busy = false;
         return;
@@ -756,6 +767,13 @@ export class GameScene extends Phaser.Scene {
   private stopMoving() {
     this.path = [];
     (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+  }
+
+  private enterHouse() {
+    if (this.leaving || this.busy) return;
+    this.leaving = true;
+    this.stopMoving();
+    fadeTo(this, 'House');
   }
 
   // 다른 지역으로 넘어간다. 퍼즐·연출 중에는 넘어가지 않는다.

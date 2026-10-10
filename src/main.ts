@@ -7,6 +7,7 @@ import { PreloadScene } from './scenes/PreloadScene';
 import { MemoryScene } from './scenes/MemoryScene';
 import { CollectionScene } from './scenes/CollectionScene';
 import { AudioScene } from './scenes/AudioScene';
+import { HouseScene } from './scenes/HouseScene';
 import { game as progress } from './state';
 
 // 세로 화면 기준 해상도 (9:16). 폰 화면 크기에 맞춰 비율을 유지한 채 확대·축소되고,
@@ -29,7 +30,7 @@ const game = new Phaser.Game({
     default: 'arcade',
     arcade: { debug: false },
   },
-  scene: [PreloadScene, TitleScene, GameScene, PuzzleScene, MemoryScene, CollectionScene, EndScene, AudioScene],
+  scene: [PreloadScene, TitleScene, GameScene, PuzzleScene, MemoryScene, CollectionScene, EndScene, HouseScene, AudioScene],
 });
 
 // 개발 중에만 브라우저 콘솔에서 게임 상태를 들여다볼 수 있게 한다. (배포본에는 없음)

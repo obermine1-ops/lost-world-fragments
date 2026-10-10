@@ -24,10 +24,16 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('tiles-water', 'assets/tilesets/TilesetWater.png');
     this.load.image('tiles-nature', 'assets/tilesets/TilesetNature.png');
     this.load.image('tiles-ruins', 'assets/tilesets/TilesetVillageAbandoned.png');
+    this.load.image('tiles-house', 'assets/tilesets/TilesetHouse.png');
     const tile = { frameWidth: 16, frameHeight: 16 };
     this.load.spritesheet('nature-sheet', 'assets/tilesets/TilesetNature.png', tile);
     this.load.spritesheet('dungeon-sheet', 'assets/tilesets/TilesetDungeon.png', tile);
     this.load.spritesheet('ruins-sheet', 'assets/tilesets/TilesetVillageAbandoned.png', tile);
+    // 나의 집 (실내 벽·바닥·가구)
+    this.load.spritesheet('wall-sheet', 'assets/tilesets/TilesetWallSimple.png', tile);
+    this.load.spritesheet('ifloor-sheet', 'assets/tilesets/TilesetInteriorFloor.png', tile);
+    this.load.spritesheet('element-sheet', 'assets/tilesets/TilesetElement.png', tile);
+    this.load.spritesheet('bed-sheet', 'assets/tilesets/tileset_bed.png', tile);
     for (const key of MAPS) this.load.tilemapTiledJSON(key, `maps/${key}.json`);
 
     this.load.spritesheet('hero', 'assets/actors/hero.png', tile);
