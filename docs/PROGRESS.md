@@ -1,6 +1,6 @@
 # 진행 상태
-- 현재 단계: Sprint 2 진행 중 — S-2.1 완료, S-2.2 구현·배포 완료(폰 확인 대기)
-- 다음 할 일: 폰에서 진짜 들판 확인·피드백 → S-2.3 주인공 걷기 애니메이션
+- 현재 단계: Sprint 3 진행 중 (Sprint 2 완료, 폰 확인 대기). 자동 진행 모드
+- 다음 할 일: S-3.1 지역별 색 상태와 빛나는 물건 (docs/sprint-3/STORIES.md)
 - 지도 수정: `tools/build-maps.mjs` 고친 뒤 `npm run maps` (결과 JSON도 커밋)
 - 에셋: 원본은 `_asset-src/ninja-adventure/`(git 제외, zip은 프로젝트 폴더), 게임에 쓰는 것만 `public/assets/`
 - 개발 팁: 개발 서버에서는 브라우저 콘솔의 `window.game`으로 장면 상태를 조작해 테스트할 수 있다(배포본엔 없음). Sprint 1 끝나면 스프린트 종료 대화(회고 → docs/sprint-1/REVIEW.md)
