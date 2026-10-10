@@ -3,7 +3,7 @@ import { FONT, addButton, addMuteButton, fadeIn, fadeTo } from '../ui';
 import { music } from '../sound';
 import { game, newGame } from '../state';
 import { clearSave, loadGame } from '../save';
-import { INTRO_LINES } from '../regions';
+import { INTRO_LINES, regionsOf } from '../regions';
 import type { MemoryData } from './MemoryScene';
 
 export class TitleScene extends Phaser.Scene {
@@ -50,11 +50,20 @@ export class TitleScene extends Phaser.Scene {
     }
 
     // 기록이 있으면 이어하기를 크게, 새로 시작은 작게 (실수로 지우지 않도록 한 번 더 묻는다)
-    addButton(this, width / 2, height * 0.7, '이어하기', () => {
+    addButton(this, width / 2, height * 0.66, '이어하기', () => {
       game.state = saved;
       fadeTo(this, 'Game');
     });
-    addButton(this, width / 2, height * 0.82, '새로 시작', () => this.confirmNew(), 130, 40);
+    // 봄을 다 되찾고 아직 여름을 시작하지 않았다면, 먼 길을 걸어 돌아가지 않아도 되게 바닷가로 바로 보내 준다.
+    const springDone = regionsOf('spring').every((r) => saved.restored.includes(r.key));
+    const inSummer = regionsOf('summer').some((r) => r.key === saved.map);
+    if (springDone && !inSummer && !regionsOf('summer').every((r) => saved.restored.includes(r.key))) {
+      addButton(this, width / 2, height * 0.76, '바닷가로 바로 가기', () => {
+        game.state = { ...saved, map: 'beach-e', x: undefined, y: undefined };
+        fadeTo(this, 'Game');
+      }, 180, 40);
+    }
+    addButton(this, width / 2, height * 0.86, '새로 시작', () => this.confirmNew(), 130, 40);
   }
 
   // 새 게임: 도입 글(세상이 흑백이 된 이야기)을 보여 준 뒤 들판으로
