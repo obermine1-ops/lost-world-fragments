@@ -3,10 +3,10 @@ import Phaser from 'phaser';
 const FOLLOW_GAP = 18; // 앞사람과 이 정도 떨어지면 따라 걷는다
 const SPEED = 70;
 
-export type PetKind = 'raccoon' | 'frog';
+export type PetKind = 'raccoon' | 'frog' | 'parrot';
 
 // 동물 그림 키 (public/assets/actors/)
-export const PET_TEXTURE: Record<PetKind, string> = { raccoon: 'pet', frog: 'frog' };
+export const PET_TEXTURE: Record<PetKind, string> = { raccoon: 'pet', frog: 'frog', parrot: 'parrot' };
 
 // 동료 동물. 앞사람(플레이어나 다른 동물)의 뒤를 졸졸 따라다니고,
 // 심부름(흙더미·물가로 달려가기)을 시키면 그곳으로 간다.

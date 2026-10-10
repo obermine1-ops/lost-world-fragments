@@ -8,8 +8,9 @@ import { saveGame } from '../save';
 
 const NEXT: Partial<Record<Season, { season: Season; map: string; label: string }>> = {
   spring: { season: 'summer', map: 'beach-e', label: '여름으로' },
+  summer: { season: 'autumn', map: 'maple-h', label: '가을로' },
 };
-const ORDINAL: Record<Season, string> = { spring: '첫', summer: '두' };
+const ORDINAL: Record<Season, string> = { spring: '첫', summer: '두', autumn: '세' };
 
 // 계절 하나를 되찾은 뒤의 요약 화면. 다음 계절이 있으면 이어서 갈 수 있다.
 export class EndScene extends Phaser.Scene {
@@ -55,7 +56,7 @@ export class EndScene extends Phaser.Scene {
     const nextDone = next && regionsOf(next.season).every((r) => s.restored.includes(r.key));
     if (next && !nextDone) {
       this.add
-        .text(width / 2, height * 0.62, `${seasonOf(next.season).name}이 잠든 바닷가로 이어지는 길이 열렸다`, {
+        .text(width / 2, height * 0.62, `${seasonOf(next.season).name}이 기다리는 곳으로 가는 길이 열렸다`, {
           fontFamily: FONT,
           fontSize: '13px',
           color: '#8f86c9',

@@ -25,6 +25,7 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('tiles-nature', 'assets/tilesets/TilesetNature.png');
     this.load.image('tiles-ruins', 'assets/tilesets/TilesetVillageAbandoned.png');
     this.load.image('tiles-house', 'assets/tilesets/TilesetHouse.png');
+    this.load.image('tiles-field', 'assets/tilesets/TilesetField.png');
     const tile = { frameWidth: 16, frameHeight: 16 };
     this.load.spritesheet('nature-sheet', 'assets/tilesets/TilesetNature.png', tile);
     this.load.spritesheet('dungeon-sheet', 'assets/tilesets/TilesetDungeon.png', tile);
@@ -39,8 +40,10 @@ export class PreloadScene extends Phaser.Scene {
     this.load.spritesheet('hero', 'assets/actors/hero.png', tile);
     this.load.spritesheet('pet', 'assets/actors/pet.png', tile);
     this.load.spritesheet('frog', 'assets/actors/frog.png', tile);
+    this.load.spritesheet('parrot', 'assets/actors/parrot.png', tile);
     this.load.spritesheet('water-sheet', 'assets/tilesets/TilesetWater.png', tile);
     this.load.image('face-pet', 'assets/actors/pet-face.png');
+    this.load.image('feather', 'assets/items/feather.png');
     for (const item of RARE_ITEMS) this.load.image(`item-${item.id}`, `assets/items/${item.id}.png`);
     for (const key of SFX) this.load.audio(`sfx-${key}`, `assets/audio/sfx-${key}.wav`);
     for (const gem of new Set(REGIONS.map((r) => r.gem))) this.load.image(`gem-${gem}`, `assets/items/gem-${gem}.png`);
@@ -50,7 +53,7 @@ export class PreloadScene extends Phaser.Scene {
   create() {
     this.createActorAnims('hero');
     // 동물 그림은 옆모습 2프레임 (오른쪽을 보고 있음 — 왼쪽으로 갈 때는 뒤집는다)
-    for (const key of ['pet', 'frog'])
+    for (const key of ['pet', 'frog', 'parrot'])
       this.anims.create({ key: `${key}-walk`, frames: this.anims.generateFrameNumbers(key, { frames: [0, 1] }), frameRate: 6, repeat: -1 });
     this.scene.launch('Audio'); // 배경 음악은 뒤에서 불러온다
     this.scene.start('Title');

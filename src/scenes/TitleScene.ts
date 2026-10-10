@@ -3,7 +3,7 @@ import { FONT, addButton, addMuteButton, fadeIn, fadeTo } from '../ui';
 import { music } from '../sound';
 import { game, newGame } from '../state';
 import { clearSave, loadGame } from '../save';
-import { INTRO_LINES, regionsOf } from '../regions';
+import { INTRO_LINES, SEASONS, regionsOf, type Season } from '../regions';
 import type { MemoryData } from './MemoryScene';
 
 export class TitleScene extends Phaser.Scene {
@@ -54,12 +54,15 @@ export class TitleScene extends Phaser.Scene {
       game.state = saved;
       fadeTo(this, 'Game');
     });
-    // 봄을 다 되찾고 아직 여름을 시작하지 않았다면, 먼 길을 걸어 돌아가지 않아도 되게 바닷가로 바로 보내 준다.
-    const springDone = regionsOf('spring').every((r) => saved.restored.includes(r.key));
-    const inSummer = regionsOf('summer').some((r) => r.key === saved.map);
-    if (springDone && !inSummer && !regionsOf('summer').every((r) => saved.restored.includes(r.key))) {
-      addButton(this, width / 2, height * 0.76, '바닷가로 바로 가기', () => {
-        game.state = { ...saved, map: 'beach-e', x: undefined, y: undefined };
+    // 앞 계절을 다 되찾고 아직 다음 계절에 들어가지 않았다면, 먼 길을 걸어 돌아가지 않아도 되게 바로 보내 준다.
+    const seasons = SEASONS.map((s) => s.key);
+    const done = (season: Season) => regionsOf(season).every((r) => saved.restored.includes(r.key));
+    const next = seasons.find((season, i) => i > 0 && done(seasons[i - 1]) && !done(season));
+    if (next && !regionsOf(next).some((r) => r.key === saved.map)) {
+      const first = regionsOf(next)[0];
+      const label = { spring: '', summer: '바닷가로 바로 가기', autumn: '단풍 숲으로 바로 가기' }[next];
+      addButton(this, width / 2, height * 0.76, label, () => {
+        game.state = { ...saved, map: first.key, x: undefined, y: undefined };
         fadeTo(this, 'Game');
       }, 180, 40);
     }

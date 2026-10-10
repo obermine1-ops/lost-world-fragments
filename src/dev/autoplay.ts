@@ -12,7 +12,9 @@ type AnyScene = any;
 // 계절의 마지막 지역을 복원해 요약 화면까지 간 경우 (그 지역의 남은 순서는 건너뛴다)
 class SeasonEnded extends Error {}
 
-const ROUTE = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g'];
+const ROUTE = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j'];
+// 계절의 첫 지역 → 앞 계절 요약 화면에서 누를 버튼
+const SEASON_START: Record<string, string> = { 'beach-e': '여름으로', 'maple-h': '가을로' };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const prop = (o: Obj, k: string) => (o.properties as { name: string; value: string }[] | undefined)?.find((p) => p.name === k)?.value;
@@ -137,9 +139,10 @@ export function installAutoplay(game: Phaser.Game) {
     // 1) 동물 친구
     for (const o of of('pet')) {
       const kind = prop(o, 'kind') ?? 'raccoon';
-      if (kind === 'frog' ? s.frog : s.pet) continue;
+      if (kind === 'frog' ? s.frog : kind === 'parrot' ? s.parrot : s.pet) continue;
       await walkTo(o.x!, o.y!, `동물(${kind})`);
-      await waitFor(() => (kind === 'frog' ? s.frog : s.pet), 5000, `동물 합류(${kind})`);
+      const joined = () => (kind === 'frog' ? s.frog : kind === 'parrot' ? s.parrot : s.pet);
+      await waitFor(joined, 5000, `동물 합류(${kind})`);
       note(`동물 합류: ${kind}`);
     }
     // 2) 흙더미 (길을 여는 것부터)
@@ -150,6 +153,13 @@ export function installAutoplay(game: Phaser.Game) {
       await walkTo(o.x!, o.y!, `흙더미(${prop(o, 'reward')})`, 22);
       await waitFor(() => s.dug.includes(prop(o, 'id')!) && !g().busy, 20000, `파기(${prop(o, 'reward')})`);
       note(`흙더미: ${prop(o, 'reward')}`);
+    }
+    // 2-1) 앵무새 하늘 심부름 (절벽 위 물건)
+    for (const o of of('perch')) {
+      if (s.dug.includes(prop(o, 'id')!)) continue;
+      await walkTo(o.x!, o.y!, `깃털 표시(${prop(o, 'reward')})`, 22);
+      await waitFor(() => s.dug.includes(prop(o, 'id')!) && !g().busy, 20000, `하늘 심부름(${prop(o, 'reward')})`);
+      note(`하늘 심부름: ${prop(o, 'reward')}`);
     }
     // 3) 잠긴 문
     for (const o of of('barrier').filter((b) => prop(b, 'unlock')?.startsWith('key:'))) {
@@ -215,15 +225,16 @@ export function installAutoplay(game: Phaser.Game) {
       note('도입 글 끝 → 새 게임 시작');
 
       for (const map of ROUTE) {
-        if (map === 'beach-e') {
-          // 봄 요약 화면의 "여름으로" 버튼
-          await waitFor(() => active('End'), 20000, '봄 요약 화면');
+        const label = SEASON_START[map];
+        if (label) {
+          // 앞 계절 요약 화면의 "여름으로"/"가을로" 버튼
+          await waitFor(() => active('End'), 20000, '계절 요약 화면');
           await sleep(900);
           const end = scene('End');
-          const button = end.children.list.find((c: AnyScene) => c.list?.some((t: AnyScene) => t.text === '여름으로'));
-          if (!button) throw new Error("'여름으로' 버튼 없음");
+          const button = end.children.list.find((c: AnyScene) => c.list?.some((t: AnyScene) => t.text === label));
+          if (!button) throw new Error(`'${label}' 버튼 없음`);
           button.emit('pointerup');
-          note("'여름으로' 누름");
+          note(`'${label}' 누름`);
         }
         try {
           await playRegion(map);
@@ -231,8 +242,8 @@ export function installAutoplay(game: Phaser.Game) {
           if (!(e instanceof SeasonEnded)) throw e;
         }
       }
-      await waitFor(() => active('End'), 20000, '여름 요약 화면');
-      note('✅ 여름 엔딩까지 완주');
+      await waitFor(() => active('End'), 20000, '마지막 요약 화면');
+      note('✅ 가을 엔딩까지 완주');
       return report(true);
     } catch (e) {
       note(`❌ ${(e as Error).message}`);

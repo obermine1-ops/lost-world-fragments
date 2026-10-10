@@ -27,6 +27,11 @@ export const FURNITURE: Furniture[] = [
   { id: 'ball', name: '비치볼', sheet: 'element-sheet', frames: [167], from: 'season:summer' },
   { id: 'firefly-jar', name: '봄 반딧불 유리병', sheet: 'element-sheet', frames: [169], from: 'fireflies:spring' },
   { id: 'shell-lamp', name: '여름 반딧불 등', sheet: 'element-sheet', frames: [165], from: 'fireflies:summer' },
+  { id: 'drawer', name: '단풍 서랍장', sheet: 'element-sheet', frames: [129], from: 'maple-h' },
+  { id: 'barrel', name: '사과 통', sheet: 'element-sheet', frames: [0], from: 'harvest-i' },
+  { id: 'pumpkin', name: '호박 등불', sheet: 'element-sheet', frames: [34], from: 'tower-j' },
+  { id: 'candles', name: '가을 촛대', sheet: 'element-sheet', frames: [2], from: 'season:autumn' },
+  { id: 'rug', name: '푸른 러그', sheet: 'element-sheet', frames: [166], from: 'fireflies:autumn' },
 ];
 
 // 방에 놓을 수 있는 것 = 가구 + 도감의 보석·희귀 아이템 (전시품)

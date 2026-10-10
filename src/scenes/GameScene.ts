@@ -44,6 +44,12 @@ function prop(obj: Phaser.Types.Tilemaps.TiledObject, name: string): string | un
   return (obj.properties as { name: string; value: string }[] | undefined)?.find((p) => p.name === name)?.value;
 }
 
+// 그 동물이 이미 동료인지
+function hasPet(kind: PetKind) {
+  const s = game.state;
+  return kind === 'frog' ? s.frog : kind === 'parrot' ? s.parrot : s.pet;
+}
+
 // 캐릭터·물건끼리는 화면 아래쪽(y가 큰 쪽)에 있는 것이 앞에 보이게 한다.
 function sortByY(obj: Phaser.GameObjects.Components.Depth & { y: number }) {
   obj.setDepth(DEPTH.actor + obj.y / 10000);
@@ -122,6 +128,7 @@ export class GameScene extends Phaser.Scene {
       map.addTilesetImage('TilesetNature', 'tiles-nature')!,
       map.addTilesetImage('TilesetVillageAbandoned', 'tiles-ruins')!,
       map.addTilesetImage('TilesetHouse', 'tiles-house')!,
+      map.addTilesetImage('TilesetField', 'tiles-field')!,
     ];
     const layer = (name: string, depth: number) => {
       const l = map.createLayer(name, tilesets)!.setDepth(depth);
@@ -162,6 +169,7 @@ export class GameScene extends Phaser.Scene {
 
     if (state.pet) this.addPet('raccoon', start.x - 14, start.y + 4);
     if (state.frog) this.addPet('frog', start.x - 28, start.y + 6);
+    if (state.parrot) this.addPet('parrot', start.x - 40, start.y + 2);
     this.placeObjects(objects);
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -280,9 +288,11 @@ export class GameScene extends Phaser.Scene {
       }
       if (o.name === 'pet') {
         const kind = (prop(o, 'kind') ?? 'raccoon') as PetKind;
-        if (!(kind === 'frog' ? state.frog : state.pet)) this.placeWaitingPet(kind, o.x!, o.y!);
+        if (!hasPet(kind)) this.placeWaitingPet(kind, o.x!, o.y!);
       }
       if (o.name === 'dig' && id && !state.dug.includes(id)) this.placeMound(o.x!, o.y!, id, prop(o, 'reward')!);
+      if (o.name === 'perch' && id && !state.dug.includes(id))
+        this.placePerch(o.x!, o.y!, Number(prop(o, 'tx')), Number(prop(o, 'ty')), id, prop(o, 'reward')!);
       if (o.name === 'barrier') this.placeBarrier(o);
       if (o.name === 'firefly' && id && !state.fireflies.includes(id)) {
         const ff = this.createFirefly(o.x!, o.y!);
@@ -554,6 +564,10 @@ export class GameScene extends Phaser.Scene {
     return this.pets.find((p) => p.kind === 'frog');
   }
 
+  private get parrot() {
+    return this.pets.find((p) => p.kind === 'parrot');
+  }
+
   // 아직 동료가 아닌 동물: 흑백 세상에서 웅크리고 있다.
   private placeWaitingPet(kind: PetKind, x: number, y: number) {
     const sprite = this.add.sprite(x, y, PET_TEXTURE[kind], 0).setFlipX(kind === 'raccoon');
@@ -568,11 +582,15 @@ export class GameScene extends Phaser.Scene {
       // 동료가 된 순간 그 동물에게 먼저 색이 돌아온다.
       this.tweens.add({ targets: pet.sprite, scale: 1.4, duration: 250, yoyo: true });
       if (kind === 'frog') game.state.frog = true;
+      else if (kind === 'parrot') game.state.parrot = true;
       else game.state.pet = true;
       sfx(this, 'pet');
       this.savePosition();
       this.updateHud();
-      if (kind === 'frog') {
+      if (kind === 'parrot') {
+        this.showMessage('나뭇가지의 앵무새가\n어깨 위로 날아와 따라오기 시작했다');
+        this.time.delayedCall(2700, () => this.showMessage('앵무새와 함께라면\n높은 곳의 물건도 가져올 수 있을 것 같다'));
+      } else if (kind === 'frog') {
         this.showMessage('연못가의 개구리가\n폴짝폴짝 따라오기 시작했다');
         this.time.delayedCall(2700, () => this.showMessage('개구리와 함께라면\n물 위에 연잎을 띄울 수 있을 것 같다'));
       } else {
@@ -587,7 +605,8 @@ export class GameScene extends Phaser.Scene {
     const pet = new Pet(this, kind, x, y);
     // 너구리가 맨 앞, 개구리는 그 뒤
     this.pets.push(pet);
-    this.pets.sort((a, b) => (a.kind === 'raccoon' ? -1 : 0) - (b.kind === 'raccoon' ? -1 : 0));
+    const order: Record<PetKind, number> = { raccoon: 0, frog: 1, parrot: 2 };
+    this.pets.sort((a, b) => order[a.kind] - order[b.kind]);
     const sprite = pet.sprite;
     sortByY(sprite);
     this.glow.add(sprite);
@@ -618,6 +637,46 @@ export class GameScene extends Phaser.Scene {
       }
       this.spots = this.spots.filter((s) => s !== spot);
       this.dig(mound, id, reward);
+    });
+  }
+
+  // 앵무새 심부름: 절벽 위 물건이 보이고, 절벽 아래 깃털 표시에 앵무새와 서면 날아가 물어 온다.
+  private placePerch(x: number, y: number, tx: number, ty: number, id: string, reward: string) {
+    const region = this.region;
+    const isGem = reward === 'gem' && region;
+    const icon = this.add.image(tx, ty, isGem ? `gem-${region.gem}` : `item-${reward}`).setDepth(DEPTH.above);
+    if (isGem && region.gemTint) icon.setTint(region.gemTint);
+    this.glow.add(icon);
+    this.tweens.add({ targets: icon, y: ty - 2, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const feather = this.add.image(x, y, 'feather').setDepth(DEPTH.decor + 0.5).setAlpha(0.9);
+    this.glow.add(feather);
+    this.tweens.add({ targets: feather, angle: 12, duration: 700, yoyo: true, repeat: -1 });
+
+    const spot = this.addSpot(x, y, TOUCH_REACH + 4, () => {
+      const parrot = this.parrot;
+      if (!parrot) {
+        this.showMessage('절벽 위에 무언가 반짝인다…\n높아서 닿지 않는다. 날 수 있는 친구가 있다면');
+        return;
+      }
+      this.spots = this.spots.filter((s) => s !== spot);
+      this.busy = true;
+      this.stopMoving();
+      sfx(this, 'pet', 0.5);
+      parrot.runTo(tx, ty + 2, () => {
+        this.tweens.killTweensOf(icon);
+        feather.destroy();
+        // 물건을 물고 플레이어에게 돌아온다.
+        const carry = () => icon.setPosition(parrot.sprite.x, parrot.sprite.y - 6);
+        this.events.on(Phaser.Scenes.Events.UPDATE, carry);
+        const body = this.player.body as Phaser.Physics.Arcade.Body;
+        parrot.runTo(body.center.x + 6, body.center.y - 6, () => {
+          this.events.off(Phaser.Scenes.Events.UPDATE, carry);
+          icon.destroy();
+          game.state.dug.push(id);
+          this.revealReward(this.player.x, this.player.y - 8, reward, '앵무새가');
+          this.busy = false;
+        });
+      });
     });
   }
 
@@ -653,7 +712,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private revealReward(x: number, y: number, reward: string) {
+  private revealReward(x: number, y: number, reward: string, finder = '너구리가') {
     // 막힌 길을 파서 연다 (돌무더기)
     if (reward.startsWith('open:')) {
       this.openBarrier(reward.slice(5));
@@ -677,10 +736,10 @@ export class GameScene extends Phaser.Scene {
 
     if (isGem) {
       game.state.gems.push(region.key);
-      this.showMessage(`너구리가 ${region.gemName} 보석을 파냈다!`);
+      this.showMessage(finder === '너구리가' ? `너구리가 ${region.gemName} 보석을 파냈다!` : `앵무새가 ${region.gemName} 보석을 물어 왔다!`);
     } else {
       game.state.items.push(reward);
-      this.showMessage(`너구리가 ${withJosa(itemOf(reward)?.name ?? reward, '을', '를')}\n찾아냈다! (도감에 기록)`);
+      this.showMessage(`${finder} ${withJosa(itemOf(reward)?.name ?? reward, '을', '를')}\n찾아냈다! (도감에 기록)`);
     }
     this.savePosition();
     this.updateHud();
@@ -866,12 +925,14 @@ export class GameScene extends Phaser.Scene {
       const next = REGIONS[REGIONS.indexOf(r) + 1];
       if (!next) return '';
       if (s.restored.includes(next.key)) return '';
-      if (next.season !== r.season) return '목표: 봄 들판 남쪽 길을 따라 바닷가로';
+      if (next.season !== r.season) return seasonOf(next.season).entry;
       return '목표: 열린 길을 따라 다음 장소로';
     }
     if (!s.gems.includes(r.key)) {
       // 보석이 땅속에 묻힌 곳(언덕·섬)은 너구리가 있어야 찾을 수 있다
       if (['hill-c', 'island-g'].includes(r.key) && !s.pet) return '목표: 땅을 파는 친구가 필요하다 (들판의 너구리)';
+      // 보석이 절벽 위에 있는 곳은 앵무새가 있어야 가져올 수 있다
+      if (['harvest-i', 'tower-j'].includes(r.key) && !s.parrot) return '목표: 높은 곳에 닿을 친구가 필요하다 (단풍 숲의 앵무새)';
       return `목표: 이곳 어딘가의 ${r.gemName} 보석 찾기`;
     }
     if (!s.fragments.includes(r.key)) return '목표: 흩어진 기억의 조각 찾기';
@@ -883,6 +944,7 @@ export class GameScene extends Phaser.Scene {
     if (!r) return;
     const restored = game.state.restored.includes(r.key);
     if (r.season === 'summer') music(this.game, restored ? 'summer' : 'sea');
+    else if (r.season === 'autumn') music(this.game, restored ? 'fall' : 'fall-gray');
     else if (restored) music(this.game, 'spring');
     else music(this.game, r.key === 'ruins-d' ? 'ruins' : 'gray');
   }
@@ -922,7 +984,7 @@ export class GameScene extends Phaser.Scene {
     const keys = regionsOf(season).map((r) => r.key);
     const count = (list: string[]) => list.filter((k) => keys.includes(k)).length;
     const total = keys.length;
-    const icon = season === 'spring' ? '✿' : '☀';
+    const icon = { spring: '✿', summer: '☀', autumn: '✾' }[season];
     this.hudText.setText(
       `◆ 조각 ${count(s.fragments)}/${total}   ● 보석 ${count(s.gems)}/${total}   ${icon} ${seasonOf(season).name} ${count(s.restored)}/${total}`,
     );

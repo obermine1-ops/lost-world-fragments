@@ -3,7 +3,7 @@ export interface RareItem {
   id: string;
   name: string;
   desc: string;
-  season: 'spring' | 'summer';
+  season: 'spring' | 'summer' | 'autumn';
 }
 
 export const RARE_ITEMS: RareItem[] = [
@@ -16,6 +16,9 @@ export const RARE_ITEMS: RareItem[] = [
   { id: 'old-coin', name: '파도에 닳은 동전', desc: '어느 먼 나라에서 떠밀려 왔을까. 바다 냄새가 난다.', season: 'summer' },
   { id: 'gourd', name: '표주박 물병', desc: '마을 아이들이 돌려 마시던 물병. 아직 시원하다.', season: 'summer' },
   { id: 'wooden-fish', name: '나무 물고기', desc: '할아버지가 깎아 준 물고기. 섬에 두고 왔던 것.', season: 'summer' },
+  { id: 'tea-leaf', name: '찻잎 봉투', desc: '할아버지가 아끼던 가을 찻잎. 따뜻한 냄새가 난다.', season: 'autumn' },
+  { id: 'honey', name: '꿀단지', desc: '추수가 끝나면 이웃끼리 나눠 먹던 꿀.', season: 'autumn' },
+  { id: 'maple-letter', name: '단풍잎 편지', desc: '연에 매달아 날려 보냈던 편지. 돌아왔구나.', season: 'autumn' },
 ];
 
 // 받침에 맞는 조사 고르기: withJosa('피리', '을', '를') → '피리를'

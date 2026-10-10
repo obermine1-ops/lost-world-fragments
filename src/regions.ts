@@ -7,7 +7,7 @@ export interface Memory {
   lines: string[];
 }
 
-export type Season = 'spring' | 'summer';
+export type Season = 'spring' | 'summer' | 'autumn';
 
 export interface Region {
   key: string;
@@ -144,12 +144,68 @@ export const REGIONS: Region[] = [
       ],
     },
   },
+  {
+    key: 'maple-h',
+    season: 'autumn',
+    gem: 'yellow',
+    gemTint: 0xffa64d,
+    gemName: '단풍빛',
+    gemColor: 0xff9a3c,
+    pairs: 3,
+    memory: {
+      face: 'oldman2',
+      name: '할아버지',
+      lines: [
+        '마당 가득 떨어진 낙엽을 할아버지와 함께 쓸었다.',
+        '모아 둔 낙엽 속에서 고구마가 노릇하게 익어 갔다.',
+        '"떨어지는 잎도 다 내년 봄을 위한 거란다."',
+      ],
+    },
+  },
+  {
+    key: 'harvest-i',
+    season: 'autumn',
+    gem: 'green',
+    gemTint: 0xd8e86b,
+    gemName: '황금빛',
+    gemColor: 0xe8d84a,
+    pairs: 5,
+    memory: {
+      face: 'villager3',
+      name: '이웃 아저씨',
+      lines: [
+        '추수하는 날이면 온 마을이 들판에 모였다.',
+        '나는 이웃 아저씨의 볏단 옆에서 메뚜기를 쫓아다녔다.',
+        '"올해도 고맙다, 땅아." 아저씨가 웃으며 말했다.',
+      ],
+    },
+  },
+  {
+    key: 'tower-j',
+    season: 'autumn',
+    gem: 'red',
+    gemTint: 0xff8a5c,
+    gemName: '노을빛',
+    gemColor: 0xff7a4a,
+    pairs: 6,
+    memory: {
+      face: 'hero',
+      name: '연을 날리던 날의 나',
+      lines: [
+        '바람의 언덕에서 처음으로 연을 높이 띄웠다.',
+        '실이 끊어져 연은 노을 속으로 멀리 날아갔다.',
+        '울지 않았다. 그 연이 어딘가에 닿았을 것 같아서.',
+      ],
+    },
+  },
 ];
 
-export const SEASONS: { key: Season; name: string; ending: string[] }[] = [
+// entry: 이 계절로 가는 길 안내 (앞 계절을 다 되찾은 뒤의 목표 문구)
+export const SEASONS: { key: Season; name: string; entry: string; ending: string[] }[] = [
   {
     key: 'spring',
     name: '봄',
+    entry: '',
     ending: [
       '들판과 숲과 언덕, 그리고 잊힌 유적에 봄이 돌아왔다.',
       '흩어졌던 기억들이 하나의 따뜻한 빛이 되었다.',
@@ -160,11 +216,23 @@ export const SEASONS: { key: Season; name: string; ending: string[] }[] = [
   {
     key: 'summer',
     name: '여름',
+    entry: '목표: 봄 들판 남쪽 길을 따라 바닷가로',
     ending: [
       '해변과 마을과 섬에 여름이 돌아왔다.',
       '파도 소리에 그리운 웃음소리가 섞여 들린다.',
       '아직 가을과 겨울이 잠들어 있지만,',
       '이제 나는 기억하는 법을 안다.',
+    ],
+  },
+  {
+    key: 'autumn',
+    name: '가을',
+    entry: '목표: 바닷가 마을 터 북쪽 길을 따라 단풍 숲으로',
+    ending: [
+      '숲과 들판과 언덕에 가을이 돌아왔다.',
+      '바람이 낙엽을 굴리며 오래된 노래를 부른다.',
+      '이제 남은 건 하얗게 잠든 겨울뿐.',
+      '친구들과 함께라면, 마지막 계절도 되찾을 수 있다.',
     ],
   },
 ];

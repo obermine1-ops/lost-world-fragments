@@ -12,6 +12,7 @@ const TILESETS = [
   { key: 'nature', name: 'TilesetNature', file: 'TilesetNature.png', w: 384, h: 336, columns: 24, count: 504 },
   { key: 'ruins', name: 'TilesetVillageAbandoned', file: 'TilesetVillageAbandoned.png', w: 320, h: 192, columns: 20, count: 240 },
   { key: 'house', name: 'TilesetHouse', file: 'TilesetHouse.png', w: 528, h: 368, columns: 33, count: 759 },
+  { key: 'field', name: 'TilesetField', file: 'TilesetField.png', w: 80, h: 240, columns: 5, count: 75 },
 ];
 const FIRST_GID = {};
 {
@@ -29,12 +30,14 @@ const ISLANDS = {
   pond: ['water', [168, 169, 170, 196, 197, 198, 224, 225, 226]],
   mud: ['floor', [319, 320, 321, 341, 342, 343, 363, 364, 365]], // 유적 바닥의 짙은 흙
   sea: ['water', [0, 1, 2, 28, 29, 30, 56, 57, 58]], // 모래사장의 바다
+  cliff: ['field', [0, 1, 2, 5, 6, 7, 10, 11, 12]], // 주황 절벽 언덕 (걸어서 오를 수 없음)
 };
 // 바탕 땅 (지도마다 고른다): 풀밭 / 유적의 흙바닥
 const BASES = {
-  grass: [264, 264, 264, 264, 264, 264, 265, 266, 267, 268, 244, 245],
-  earth: [429, 429, 429, 429, 429, 430, 431, 432, 433],
-  sand: [110, 110, 110, 110, 110, 111, 112, 113, 114],
+  grass: ['floor', [264, 264, 264, 264, 264, 264, 265, 266, 267, 268, 244, 245]],
+  earth: ['floor', [429, 429, 429, 429, 429, 430, 431, 432, 433]],
+  sand: ['floor', [110, 110, 110, 110, 110, 111, 112, 113, 114]],
+  leaves: ['field', [3, 3, 3, 4, 8, 9]], // 낙엽 덮인 가을 땅
 };
 // 여러 칸짜리 유적 구조물 (TilesetVillageAbandoned) — 행 단위 그림 번호
 const RUINS = {
@@ -53,12 +56,16 @@ const TREES = {
   cherry: [14, 15, 38, 39],
   round: [0, 1, 24, 25],
   pine: [2, 3, 26, 27],
+  olive: [18, 19, 42, 43], // 노랗게 물든 나무
+  dead: [4, 5, 28, 29],
 };
 // 3×3 큰 나무 (윗줄 → 아랫줄)
 const BIG_TREES = {
   cherry: [432, 433, 434, 456, 457, 458, 480, 481, 482],
   green: [435, 436, 437, 459, 460, 461, 483, 484, 485],
+  maple: [441, 442, 443, 465, 466, 467, 489, 490, 491], // 큰 단풍나무
 };
+const LEAF_PILES = [276, 277, 300, 301];
 const CRYSTALS = [336, 337, 338, 339];
 const BUSHES = [240, 241, 242, 246];
 const FLOWERS = [264, 265, 266, 267, 270];
@@ -192,6 +199,11 @@ class MapBuilder {
     this.point('dig', x, y, { id: `${this.name}-${x}-${y}`, reward });
   }
 
+  // 앵무새 심부름: 절벽 아래 (x, y)에 깃털 표시, 절벽 위 (tx, ty)에 물건. reward: 'gem' 또는 희귀 아이템 id
+  perch(x, y, tx, ty, reward) {
+    this.point('perch', x, y, { id: `${this.name}-perch-${x}-${y}`, reward, tx: String(tx * TILE + TILE / 2), ty: String(ty * TILE + TILE / 2) });
+  }
+
   // 시든 나무가 길을 막는 칸 범위. region 지역이 복원되면 사라진다.
   // 길을 막는 것. unlock: 'restore:<지역>'(지역 복원 시) / 'dig'(너구리가 open:<id> 흙더미를 파면) / 'key:<아이템>'(열쇠)
   // look: 'dead-tree'(시든 나무) / 'rubble'(돌무더기) / 'door'(잠긴 문)
@@ -264,7 +276,8 @@ class MapBuilder {
       for (let x = 0; x < this.width; x++) {
         const kind = this.terrain[this.i(x, y)];
         if (kind === 'grass') {
-          this.ground[this.i(x, y)] = gid('floor', this.pick(BASES[this.base]));
+          const [set, ids] = BASES[this.base];
+          this.ground[this.i(x, y)] = gid(set, this.pick(ids));
           continue;
         }
         const same = (dx, dy) => !this.inside(x + dx, y + dy) || this.terrain[this.i(x + dx, y + dy)] === kind;
@@ -272,7 +285,7 @@ class MapBuilder {
         const row = same(0, -1) ? (same(0, 1) ? 1 : 2) : 0;
         const [set, ids] = ISLANDS[kind];
         this.ground[this.i(x, y)] = gid(set, ids[row * 3 + col]);
-        if (kind === 'pond' || kind === 'sea') this.block(x, y);
+        if (kind === 'pond' || kind === 'sea' || kind === 'cliff') this.block(x, y);
       }
   }
 
@@ -544,7 +557,7 @@ function villageF() {
   m.area('pond', 20, 20, 5, 4); // 마을 우물가 연못 (개구리가 사는 곳)
   m.area('dirt', 4, 8, 22, 3); // 마을 길
 
-  m.border('round', { left: [16, 19] }, { bottom: false });
+  m.border('round', { left: [16, 19], top: [12, 15] }, { bottom: false });
   m.stamp('ruins', RUINS.house, 3, 3, 2);
   m.stamp('ruins', RUINS.hut, 9, 3, 2);
   m.stamp('ruins', RUINS.shrine, 16, 2, 2);
@@ -556,6 +569,9 @@ function villageF() {
 
   m.point('from-beach-e', 2, 17);
   m.exit(0, 16, 1, 4, 'beach-e', 'from-village-f');
+  m.point('from-maple-h', 13, 4);
+  m.exit(12, 0, 4, 1, 'maple-h', 'from-village-f');
+  m.barrier(12, 2, 4, 2, { id: 'village-north', unlock: 'restore:island-g', look: 'dead-tree' });
   m.point('pet', 19, 25, { kind: 'frog' });
   m.treasures({ gem: [26, 6], fragment: [7, 19], altar: [14, 11] });
   m.dig(22, 16, 'gourd');
@@ -611,8 +627,99 @@ function islandG() {
   return m;
 }
 
+// ══ 가을 ═══════════════════════════════════════════════════
+
+// ── 단풍 숲 H ─────────────────────────────────────────────
+// 바닷가 마을 터 북쪽의 낙엽 숲. 앵무새를 만나고, 작은 절벽 위의 찻잎 봉투로 하늘 심부름을 처음 해 본다.
+function mapleH() {
+  const W = 26;
+  const H = 40;
+  const m = new MapBuilder('maple-h', '단풍 숲', W, H, 20261030, { base: 'leaves' });
+
+  m.area('cliff', 16, 21, 6, 4); // 작은 절벽 (위에 찻잎 봉투)
+  m.border('olive', { top: [11, 14], bottom: [11, 14] });
+  for (const [x, y] of [[5, 6], [20, 7], [4, 15], [9, 27], [20, 33], [4, 34]]) m.bigTree('maple', x, y);
+  const trees = [['olive', 14, 9], ['dead', 9, 12], ['olive', 2, 23], ['dead', 16, 30], ['olive', 22, 16]];
+  for (const [kind, x, y] of trees) m.tree(kind, x, y);
+
+  m.point('from-village-f', 12, 36);
+  m.point('from-harvest-i', 12, 4);
+  m.exit(11, H - 1, 4, 1, 'village-f', 'from-maple-h');
+  m.exit(11, 0, 4, 1, 'harvest-i', 'from-maple-h');
+  m.barrier(11, 2, 4, 2, { id: 'maple-north', unlock: 'restore:maple-h', look: 'dead-tree' });
+  m.point('pet', 7, 21, { kind: 'parrot' });
+  m.treasures({ gem: [21, 12], fragment: [3, 10], altar: [12, 17] });
+  m.perch(18, 26, 18, 22, 'tea-leaf');
+  m.fireflies([[2, 3], [23, 37], [24, 25]]);
+
+  const keepClear = (x, y) => x >= 10 && x <= 15;
+  m.scatter(LEAF_PILES, 30, false, keepClear);
+  m.scatter(BUSHES, 8, true, keepClear);
+  m.paintGround();
+  return m;
+}
+
+// ── 추수 들판 I ───────────────────────────────────────────
+// 계단처럼 솟은 밭 언덕(절벽)이 이어지는 들판. 보석은 높은 언덕 위 — 앵무새가 물어 와야 한다.
+function harvestI() {
+  const W = 30;
+  const H = 40;
+  const m = new MapBuilder('harvest-i', '추수 들판', W, H, 20261031, { base: 'leaves' });
+
+  m.area('cliff', 4, 8, 7, 5);
+  m.area('cliff', 19, 17, 8, 6);
+  m.area('cliff', 5, 25, 7, 5);
+  m.area('pond', 20, 30, 5, 3); // 물웅덩이
+  m.border('olive', { top: [13, 16], bottom: [13, 16] });
+  for (const [x, y] of [[24, 7], [16, 13], [4, 21], [15, 33]]) m.bigTree('maple', x, y);
+
+  m.point('from-maple-h', 14, 36);
+  m.point('from-tower-j', 14, 4);
+  m.exit(13, H - 1, 4, 1, 'maple-h', 'from-harvest-i');
+  m.exit(13, 0, 4, 1, 'tower-j', 'from-harvest-i');
+  m.barrier(13, 2, 4, 2, { id: 'harvest-north', unlock: 'restore:harvest-i', look: 'dead-tree' });
+  m.treasures({ fragment: [8, 16], altar: [15, 25] });
+  m.perch(22, 23, 22, 19, 'gem'); // 보석은 오른쪽 언덕 위
+  m.dig(26, 27, 'honey');
+  m.fireflies([[2, 3], [27, 3], [2, 36]]);
+
+  const keepClear = (x, y) => x >= 12 && x <= 17;
+  m.scatter([271, 272, 273], 25, false, keepClear); // 마른 풀
+  m.scatter(LEAF_PILES, 20, false, keepClear);
+  m.scatter(BUSHES, 6, true, keepClear);
+  m.paintGround();
+  return m;
+}
+
+// ── 바람의 언덕 J ─────────────────────────────────────────
+// 가을의 끝. 커다란 절벽 언덕을 둘러 오르는 바람 부는 곳. 언덕 위의 보석과 편지는 앵무새가 가져온다.
+function towerJ() {
+  const W = 24;
+  const H = 34;
+  const m = new MapBuilder('tower-j', '바람의 언덕', W, H, 20261032, { base: 'leaves' });
+
+  m.area('cliff', 6, 6, 12, 8); // 큰 언덕
+  m.border('dead', { bottom: [10, 13] });
+  for (const [x, y] of [[4, 20], [20, 24]]) m.bigTree('maple', x, y);
+  m.stamp('ruins', RUINS.thinPillar, 3, 27, 2);
+  m.stamp('ruins', RUINS.thinPillar, 19, 28, 2);
+
+  m.point('from-harvest-i', 11, H - 4);
+  m.exit(10, H - 1, 4, 1, 'harvest-i', 'from-tower-j');
+  m.treasures({ fragment: [19, 17], altar: [11, 17] });
+  m.perch(8, 15, 8, 9, 'gem');
+  m.perch(16, 15, 15, 8, 'maple-letter');
+  m.fireflies([[2, 3], [21, 3], [21, 31]]);
+
+  const keepClear = (x, y) => (x >= 9 && x <= 14) || y === 15 || y === 16;
+  m.scatter(LEAF_PILES, 24, false, keepClear);
+  m.scatter(BUSHES, 6, true, keepClear);
+  m.paintGround();
+  return m;
+}
+
 mkdirSync('public/maps', { recursive: true });
-for (const map of [meadowA(), forestB(), hillC(), ruinsD(), beachE(), villageF(), islandG()]) {
+for (const map of [meadowA(), forestB(), hillC(), ruinsD(), beachE(), villageF(), islandG(), mapleH(), harvestI(), towerJ()]) {
   writeFileSync(`public/maps/${map.name}.json`, JSON.stringify(map.toTiled()));
   console.log(`public/maps/${map.name}.json (${map.width}×${map.height})`);
 }

@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 // 효과음(작아서 처음에 불러옴)과 배경 음악(커서 게임 시작 후 뒤에서 천천히 불러옴).
 // 음소거 여부는 기기에 기억한다.
 export const SFX = ['pickup', 'gem', 'flip', 'match', 'success', 'restore', 'dig', 'secret', 'pet', 'click', 'memory', 'splash'] as const;
-export const MUSIC = ['quiet', 'gray', 'spring', 'ruins', 'end', 'sea', 'summer'] as const;
+export const MUSIC = ['quiet', 'gray', 'spring', 'ruins', 'end', 'sea', 'summer', 'fall-gray', 'fall'] as const;
 export type Sfx = (typeof SFX)[number];
 export type Music = (typeof MUSIC)[number];
 
