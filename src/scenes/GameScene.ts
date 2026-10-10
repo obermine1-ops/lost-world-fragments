@@ -3,6 +3,7 @@ import { FONT, addButton, fadeIn, fadeTo } from '../ui';
 import { WorldColor } from '../worldColor';
 import type { PuzzleData } from './PuzzleScene';
 import { ActorAnimator } from '../actor';
+import { NavGrid, type Point } from '../pathfinding';
 
 // 타일 16px 그림을 2배로 확대해 보여준다. (폰 화면에 가로 약 11칸 × 세로 20칸)
 const ZOOM = 2;
@@ -11,6 +12,9 @@ const ARRIVE_DISTANCE = 2;
 const STUCK_CHECK_MS = 250;
 const STUCK_MIN_PROGRESS = 3;
 const TOTAL_FRAGMENTS = 1;
+// 발밑 충돌 상자의 절반 크기 (가로 10 × 세로 6)
+const FEET_HALF_W = 5;
+const FEET_HALF_H = 3;
 
 // 그리는 순서 (숫자가 클수록 위)
 const DEPTH = { ground: 0, decor: 1, marker: 5, actor: 10, above: 20 };
@@ -27,7 +31,8 @@ export class GameScene extends Phaser.Scene {
   private ui!: Phaser.GameObjects.Layer;
   private player!: Phaser.GameObjects.Sprite;
   private playerAnim!: ActorAnimator;
-  private target?: Phaser.Math.Vector2;
+  private nav!: NavGrid;
+  private path: Point[] = [];
   private progressCheckAt = 0;
   private progressDistance = 0;
   private fpsText?: Phaser.GameObjects.Text;
@@ -41,7 +46,7 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    this.target = undefined;
+    this.path = [];
     this.fragmentsFound = 0;
     this.world = this.add.layer();
     this.ui = this.add.layer();
@@ -62,6 +67,10 @@ export class GameScene extends Phaser.Scene {
     layer('above', DEPTH.above);
     const collide = map.createLayer('collide', tilesets)!.setVisible(false);
     collide.setCollisionByExclusion([-1]);
+    const blocked: boolean[] = [];
+    for (let y = 0; y < map.height; y++)
+      for (let x = 0; x < map.width; x++) blocked.push(collide.getTileAt(x, y) !== null);
+    this.nav = new NavGrid(map.width, map.height, map.tileWidth, blocked);
 
     const spot = (name: string) => {
       const o = map.findObject('objects', (obj) => obj.name === name);
@@ -75,7 +84,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.existing(this.player);
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     // 발밑만 부딪히게 해서 나무 윗부분 뒤로는 지나갈 수 있게 한다.
-    body.setSize(10, 6).setOffset(3, 10).setCollideWorldBounds(true);
+    body.setSize(FEET_HALF_W * 2, FEET_HALF_H * 2).setOffset(8 - FEET_HALF_W, 16 - FEET_HALF_H * 2).setCollideWorldBounds(true);
     // 장애물에 비스듬히 닿으면 미끄러지듯 비켜 가고, 정면으로 막히면 update에서 멈춘다.
     this.physics.add.collider(this.player, collide);
 
@@ -117,17 +126,22 @@ export class GameScene extends Phaser.Scene {
     this.playerAnim.update(velocity.x, velocity.y);
     sortByY(this.player);
 
-    if (!this.target) return;
-    const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.target.x, this.target.y);
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    const waypoint = this.path[0];
+    if (!waypoint) return;
+    // 발밑(충돌 상자 가운데)이 경로 지점에 닿으면 다음 지점으로
+    const distance = Phaser.Math.Distance.Between(body.center.x, body.center.y, waypoint.x, waypoint.y);
     if (distance < ARRIVE_DISTANCE) {
-      this.stopMoving();
+      this.path.shift();
+      if (this.path.length === 0) this.stopMoving();
+      else this.resetProgress();
       return;
     }
 
-    // 미끄러지는 동안에도 목적지 쪽으로 방향을 다시 잡는다.
-    this.physics.moveTo(this.player, this.target.x, this.target.y, PLAYER_SPEED);
+    const angle = Phaser.Math.Angle.Between(body.center.x, body.center.y, waypoint.x, waypoint.y);
+    body.setVelocity(Math.cos(angle) * PLAYER_SPEED, Math.sin(angle) * PLAYER_SPEED);
 
-    // 일정 시간 동안 목적지에 거의 가까워지지 않았다면 막힌 것으로 보고 멈춘다.
+    // 일정 시간 동안 지점에 거의 가까워지지 않았다면 막힌 것으로 보고 멈춘다. (길 찾기가 빗나간 경우 대비)
     if (this.time.now - this.progressCheckAt > STUCK_CHECK_MS) {
       if (this.progressDistance - distance < STUCK_MIN_PROGRESS) this.stopMoving();
       this.progressCheckAt = this.time.now;
@@ -135,16 +149,23 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // 탭한 곳까지 장애물을 돌아가는 길을 찾아 걷는다. 갈 수 없는 곳이면 가장 가까운 곳까지 간다.
   private moveTo(x: number, y: number) {
-    this.target = new Phaser.Math.Vector2(x, y);
-    this.progressCheckAt = this.time.now;
-    this.progressDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
-    this.physics.moveTo(this.player, x, y, PLAYER_SPEED);
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    this.path = this.nav.findPath(body.center, { x, y }, FEET_HALF_W, FEET_HALF_H);
+    this.resetProgress();
     this.showTapMarker(x, y);
   }
 
+  private resetProgress() {
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    this.progressCheckAt = this.time.now;
+    const wp = this.path[0];
+    this.progressDistance = wp ? Phaser.Math.Distance.Between(body.center.x, body.center.y, wp.x, wp.y) : 0;
+  }
+
   private stopMoving() {
-    this.target = undefined;
+    this.path = [];
     (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
   }
 
