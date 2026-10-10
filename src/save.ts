@@ -1,10 +1,10 @@
-import { MAPS, type GameState } from './state';
+import { MAPS, newGame, type GameState } from './state';
 
 // 진행 상태를 이 기기의 브라우저 저장소에 보관한다. (서버 없음)
 // 저장 형식이 바뀌면 VERSION을 올리고 migrate에서 옛 기록을 새 형식으로 고친다.
 const KEY = 'lost-world-fragments/save';
-// v1: 색 복원이 세상 전체 하나(restored: boolean) / v2: 지역별 복원 목록 + 보석
-const VERSION = 2;
+// v1: 색 복원이 세상 전체 하나(restored: boolean) / v2: 지역별 복원 목록 + 보석 / v3: 너구리·흙더미·희귀 아이템
+const VERSION = 3;
 
 interface SaveFile {
   version: number;
@@ -51,8 +51,9 @@ function migrate(file: { version?: number; state?: Record<string, unknown> }): G
   const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
   // v1 → v2: 조각 id가 'spring-1' 하나뿐이었고, 복원은 세상 전체였다. 진행 위치만 살리고 수집은 새로 시작한다.
-  if (file.version === 1) return { map: s.map as string, fragments: [], gems: [], restored: [] };
+  if (file.version === 1) return { ...newGame(), map: s.map as string };
 
+  // v2 → v3: 새 항목(너구리·흙더미·아이템)은 빈 값으로 시작한다.
   return {
     map: s.map as string,
     x: typeof s.x === 'number' ? s.x : undefined,
@@ -60,5 +61,8 @@ function migrate(file: { version?: number; state?: Record<string, unknown> }): G
     fragments: strings(s.fragments),
     gems: strings(s.gems),
     restored: strings(s.restored),
+    pet: s.pet === true,
+    dug: strings(s.dug),
+    items: strings(s.items),
   };
 }

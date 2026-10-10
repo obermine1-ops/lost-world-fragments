@@ -134,11 +134,17 @@ class MapBuilder {
   }
 
   // 이 지역의 보석·기억의 조각·제단 (id는 지역 이름)
+  // gem이 없으면 보석은 흙더미 속에 묻어 둔다(dig로 따로 지정).
   treasures({ gem, fragment, altar }) {
-    this.point('gem', gem[0], gem[1], { id: this.name });
+    if (gem) this.point('gem', gem[0], gem[1], { id: this.name });
     this.point('fragment', fragment[0], fragment[1], { id: this.name });
     this.point('altar', altar[0], altar[1], { id: this.name });
     this.block(altar[0], altar[1]);
+  }
+
+  // 너구리가 파낼 수 있는 흙더미. reward: 'gem'(이 지역 보석) 또는 희귀 아이템 id
+  dig(x, y, reward) {
+    this.point('dig', x, y, { id: `${this.name}-${x}-${y}`, reward });
   }
 
   // 시든 나무가 길을 막는 칸 범위. region 지역이 복원되면 사라진다.
@@ -259,6 +265,8 @@ function meadowA() {
   m.exit(12, 0, 6, 1, 'forest-b', 'from-meadow-a');
   m.barrier(12, 2, 6, 2, 'meadow-a');
   m.treasures({ gem: [3, 29], fragment: [23, 8], altar: [17, 26] });
+  m.point('pet', 7, 32);
+  m.dig(25, 30, 'pan-flute');
 
   const nearPath = (x, y) => x >= 12 && x <= 16;
   m.scatter(BUSHES, 14, true, nearPath);
@@ -295,6 +303,8 @@ function forestB() {
   m.exit(10, 0, 4, 1, 'hill-c', 'from-forest-b');
   m.barrier(10, 2, 4, 2, 'forest-b');
   m.treasures({ gem: [19, 25], fragment: [4, 19], altar: [14, 20] });
+  m.dig(5, 28, 'letter');
+  m.dig(20, 9, 'hourglass');
 
   const nearPath = (x, y) => x >= 9 && x <= 14;
   m.scatter(BUSHES, 22, true, nearPath);
@@ -326,7 +336,10 @@ function hillC() {
   ];
   for (const [kind, x, y] of trees) m.tree(kind, x, y);
 
-  m.treasures({ gem: [4, 24], fragment: [15, 16], altar: [15, 13] });
+  m.treasures({ fragment: [15, 16], altar: [15, 13] });
+  m.dig(4, 24, 'gem'); // 언덕의 보석은 땅속에 — 너구리가 있어야 찾을 수 있다
+  m.dig(25, 22, 'picture-book');
+  m.dig(22, 33, 'flower-seed');
   for (const [x, y] of [[13, 13], [17, 13], [12, 17], [18, 17]]) m.single(CRYSTALS, x, y, false, true);
   m.point('from-forest-b', 14, H - 3);
   m.exit(12, H - 1, 6, 1, 'forest-b', 'from-hill-c');

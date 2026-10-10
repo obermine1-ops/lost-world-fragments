@@ -9,13 +9,18 @@ export interface GameState {
   gems: string[];
   // 색이 돌아온 지역
   restored: string[];
+  // 너구리가 동료가 되었는지
+  pet: boolean;
+  // 이미 파 본 흙더미 / 찾은 희귀 아이템
+  dug: string[];
+  items: string[];
 }
 
 export const FIRST_MAP = 'meadow-a';
 export const MAPS = ['meadow-a', 'forest-b', 'hill-c'] as const;
 
 export function newGame(): GameState {
-  return { map: FIRST_MAP, fragments: [], gems: [], restored: [] };
+  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, dug: [], items: [] };
 }
 
 export const game = { state: newGame() };

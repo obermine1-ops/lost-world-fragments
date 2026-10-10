@@ -3,6 +3,7 @@ import { FONT } from '../ui';
 import { DIRECTIONS } from '../actor';
 import { MAPS } from '../state';
 import { REGIONS } from '../regions';
+import { RARE_ITEMS } from '../items';
 
 // 게임에 필요한 그림·지도를 처음에 한 번 불러온다.
 export class PreloadScene extends Phaser.Scene {
@@ -27,6 +28,9 @@ export class PreloadScene extends Phaser.Scene {
     for (const key of MAPS) this.load.tilemapTiledJSON(key, `maps/${key}.json`);
 
     this.load.spritesheet('hero', 'assets/actors/hero.png', tile);
+    this.load.spritesheet('pet', 'assets/actors/pet.png', tile);
+    this.load.image('face-pet', 'assets/actors/pet-face.png');
+    for (const item of RARE_ITEMS) this.load.image(`item-${item.id}`, `assets/items/${item.id}.png`);
     for (const r of REGIONS) {
       this.load.image(`gem-${r.gem}`, `assets/items/gem-${r.gem}.png`);
       this.load.image(`face-${r.memory.face}`, `assets/faces/${r.memory.face}.png`);
@@ -35,6 +39,8 @@ export class PreloadScene extends Phaser.Scene {
 
   create() {
     this.createActorAnims('hero');
+    // 동물 그림은 옆모습 2프레임 (오른쪽을 보고 있음 — 왼쪽으로 갈 때는 뒤집는다)
+    this.anims.create({ key: 'pet-walk', frames: this.anims.generateFrameNumbers('pet', { frames: [0, 1] }), frameRate: 6, repeat: -1 });
     this.scene.start('Title');
   }
 
