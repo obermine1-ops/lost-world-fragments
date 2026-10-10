@@ -27,11 +27,13 @@ const ISLANDS = {
   dirt: ['floor', [154, 155, 156, 176, 177, 178, 198, 199, 200]],
   pond: ['water', [168, 169, 170, 196, 197, 198, 224, 225, 226]],
   mud: ['floor', [319, 320, 321, 341, 342, 343, 363, 364, 365]], // 유적 바닥의 짙은 흙
+  sea: ['water', [0, 1, 2, 28, 29, 30, 56, 57, 58]], // 모래사장의 바다
 };
 // 바탕 땅 (지도마다 고른다): 풀밭 / 유적의 흙바닥
 const BASES = {
   grass: [264, 264, 264, 264, 264, 264, 265, 266, 267, 268, 244, 245],
   earth: [429, 429, 429, 429, 429, 430, 431, 432, 433],
+  sand: [110, 110, 110, 110, 110, 111, 112, 113, 114],
 };
 // 여러 칸짜리 유적 구조물 (TilesetVillageAbandoned) — 행 단위 그림 번호
 const RUINS = {
@@ -137,11 +139,11 @@ class MapBuilder {
   }
 
   // 지도 가장자리를 나무로 두른다. gaps: { top: [x0, x1], bottom: [x0, x1] } — 길목으로 비워 둘 칸 범위
-  border(kind, gaps = {}) {
+  border(kind, gaps = {}, { bottom = true } = {}) {
     const open = (range, x) => range && x + 1 >= range[0] && x <= range[1];
     for (let x = 0; x < this.width; x += 2) {
       if (!open(gaps.top, x)) this.tree(kind, x, 1);
-      if (!open(gaps.bottom, x)) this.tree(kind, x, this.height - 1);
+      if (bottom && !open(gaps.bottom, x)) this.tree(kind, x, this.height - 1);
     }
     for (let y = 3; y < this.height - 1; y += 2) {
       this.tree(kind, 0, y);
@@ -243,7 +245,7 @@ class MapBuilder {
         const row = same(0, -1) ? (same(0, 1) ? 1 : 2) : 0;
         const [set, ids] = ISLANDS[kind];
         this.ground[this.i(x, y)] = gid(set, ids[row * 3 + col]);
-        if (kind === 'pond') this.block(x, y);
+        if (kind === 'pond' || kind === 'sea') this.block(x, y);
       }
   }
 
@@ -293,11 +295,11 @@ function meadowA() {
   const H = 50;
   const m = new MapBuilder('meadow-a', '봄 들판', W, H, 20261010);
 
-  m.area('dirt', 13, 0, 3, 48); // 남북으로 가로지르는 길 (위쪽 끝은 숲길로 이어짐)
+  m.area('dirt', 13, 0, 3, H); // 남북으로 가로지르는 길 (위: 숲길, 아래: 바닷가)
   m.area('pond', 3, 19, 7, 5); // 연못
   m.area('dirt', 20, 7, 6, 4); // 오른쪽 위 공터
 
-  m.border('green', { top: [12, 17] });
+  m.border('green', { top: [12, 17], bottom: [12, 17] });
   const trees = [
     ['cherry', 10, 6], ['cherry', 17, 14], ['cherry', 9, 28], ['cherry', 18, 33], ['cherry', 10, 41],
     ['cherry', 22, 24], ['cherry', 5, 12], ['cherry', 24, 40], ['green', 4, 34], ['green', 6, 37],
@@ -308,6 +310,9 @@ function meadowA() {
 
   m.point('start', 14, 46);
   m.point('from-forest-b', 14, 4);
+  m.point('from-beach-e', 15, 45);
+  m.exit(12, H - 1, 6, 1, 'beach-e', 'from-meadow-a');
+  m.barrier(12, H - 3, 6, 2, { id: 'meadow-south', unlock: 'restore:ruins-d', look: 'dead-tree' });
   m.exit(12, 0, 6, 1, 'forest-b', 'from-meadow-a');
   m.barrier(12, 2, 6, 2, { id: 'meadow-gate', unlock: 'restore:meadow-a', look: 'dead-tree' });
   m.treasures({ gem: [3, 29], fragment: [23, 8], altar: [17, 26] });
@@ -454,8 +459,43 @@ function ruinsD() {
   return m;
 }
 
+// ══ 여름 ═══════════════════════════════════════════════════
+
+// ── 햇살 해변 E ───────────────────────────────────────────
+// 봄 들판 남쪽의 모래사장. 아래쪽은 바다. 바위 사이 조수 웅덩이와 부서진 배가 있다.
+function beachE() {
+  const W = 30;
+  const H = 40;
+  const m = new MapBuilder('beach-e', '햇살 해변', W, H, 20261020, { base: 'sand' });
+
+  m.area('sea', 0, 27, W, H - 27); // 바다
+  m.area('sea', 4, 14, 5, 4); // 조수 웅덩이
+  m.area('sea', 21, 8, 5, 3); // 바위 웅덩이
+
+  m.border('round', { top: [12, 17] }, { bottom: false });
+  const trees = [
+    ['round', 3, 6], ['green', 7, 4], ['round', 22, 4], ['green', 25, 13], ['round', 18, 18],
+    ['round', 3, 22], ['green', 10, 21], ['round', 24, 22],
+  ];
+  for (const [kind, x, y] of trees) m.tree(kind, x, y);
+
+  m.point('start', 14, 4);
+  m.point('from-meadow-a', 14, 3);
+  m.exit(12, 0, 6, 1, 'meadow-a', 'from-beach-e');
+  m.treasures({ gem: [26, 24], fragment: [6, 19], altar: [14, 12] });
+  m.dig(20, 22, 'old-coin');
+
+  const keepClear = (x, y) => x >= 12 && x <= 16 && y < 14;
+  m.scatter(ROCKS, 12, true, keepClear);
+  m.scatter(BUSHES, 6, true, keepClear);
+  m.scatter([270, 266], 20, false, keepClear);
+
+  m.paintGround();
+  return m;
+}
+
 mkdirSync('public/maps', { recursive: true });
-for (const map of [meadowA(), forestB(), hillC(), ruinsD()]) {
+for (const map of [meadowA(), forestB(), hillC(), ruinsD(), beachE()]) {
   writeFileSync(`public/maps/${map.name}.json`, JSON.stringify(map.toTiled()));
   console.log(`public/maps/${map.name}.json (${map.width}×${map.height})`);
 }

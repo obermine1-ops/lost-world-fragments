@@ -19,7 +19,7 @@ export interface GameState {
 }
 
 export const FIRST_MAP = 'meadow-a';
-export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d'] as const;
+export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e'] as const;
 
 export function newGame(): GameState {
   return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, dug: [], items: [], opened: [] };

@@ -8,7 +8,7 @@ import { ActorAnimator } from '../actor';
 import { NavGrid, type Point } from '../pathfinding';
 import { game } from '../state';
 import { saveGame } from '../save';
-import { ENDING_LINES, REGIONS, regionOf, type Region } from '../regions';
+import { REGIONS, regionOf, regionsOf, seasonOf, type Region } from '../regions';
 import { itemOf, withJosa } from '../items';
 import { Pet } from '../pet';
 import type { CollectionData } from './CollectionScene';
@@ -307,6 +307,7 @@ export class GameScene extends Phaser.Scene {
   private createGem(x: number, y: number, region: Region) {
     const glow = this.add.circle(0, 0, 8, region.gemColor, 0.3);
     const img = this.add.image(0, 0, `gem-${region.gem}`).setScale(0.8);
+    if (region.gemTint) img.setTint(region.gemTint);
     const gem = this.add.container(x, y, [glow, img]);
     gem.setSize(14, 14);
     sortByY(gem);
@@ -542,6 +543,7 @@ export class GameScene extends Phaser.Scene {
     sfx(this, isGem ? 'gem' : 'pickup');
     const texture = isGem ? `gem-${region.gem}` : `item-${reward}`;
     const icon = this.add.image(x, y, texture).setDepth(DEPTH.above);
+    if (isGem && region.gemTint) icon.setTint(region.gemTint);
     this.glow.add(icon);
     this.tweens.add({
       targets: icon,
@@ -584,6 +586,7 @@ export class GameScene extends Phaser.Scene {
     this.stopMoving();
     const altar = this.altar!;
     const gem = this.add.image(this.player.x, this.player.y - 10, `gem-${region.gem}`).setDepth(DEPTH.above);
+    if (region.gemTint) gem.setTint(region.gemTint);
     this.glow.add(gem);
     this.tweens.add({
       targets: gem,
@@ -639,17 +642,18 @@ export class GameScene extends Phaser.Scene {
     this.playRegionMusic();
     this.color.restore(() => {
       this.removeBarriers((b) => b.unlock === `restore:${region.key}`);
-      const done = REGIONS.every((r) => game.state.restored.includes(r.key));
-      this.showMessage(done ? '봄이 모두 돌아왔다' : '색이 돌아왔다!\n막혀 있던 길이 열린 것 같다');
+      const season = seasonOf(region.season);
+      const done = regionsOf(region.season).every((r) => game.state.restored.includes(r.key));
+      this.showMessage(done ? `${season.name}이 모두 돌아왔다` : '색이 돌아왔다!\n막혀 있던 길이 열린 것 같다');
       if (!done) {
         this.busy = false;
         return;
       }
       this.time.delayedCall(2500, () => {
         this.scene.pause();
-        this.showMemory({ lines: ENDING_LINES }, () => {
+        this.showMemory({ lines: season.ending }, () => {
           this.scene.resume(); // 멈춘 장면은 화면 전환(페이드)이 진행되지 않으므로 먼저 깨운다
-          fadeTo(this, 'End');
+          fadeTo(this, 'End', { season: region.season });
         });
       });
     });
@@ -727,8 +731,10 @@ export class GameScene extends Phaser.Scene {
     if (!r) return '';
     if (s.restored.includes(r.key)) {
       const next = REGIONS[REGIONS.indexOf(r) + 1];
-      if (!next) return '봄을 모두 되찾았다';
-      return s.restored.includes(next.key) ? '' : '목표: 열린 길을 따라 다음 장소로';
+      if (!next) return '';
+      if (s.restored.includes(next.key)) return '';
+      if (next.season !== r.season) return '목표: 봄 들판 남쪽 길을 따라 바닷가로';
+      return '목표: 열린 길을 따라 다음 장소로';
     }
     if (!s.gems.includes(r.key)) {
       if (r.key === 'hill-c' && !s.pet) return '목표: 땅을 파는 친구가 필요하다 (들판의 너구리)';
@@ -766,6 +772,7 @@ export class GameScene extends Phaser.Scene {
     this.stopMoving();
     this.scene.pause();
     this.scene.launch('Collection', {
+      season: this.region?.season,
       onClose: () => {
         this.scene.stop('Collection');
         this.scene.resume();
@@ -775,8 +782,14 @@ export class GameScene extends Phaser.Scene {
 
   private updateHud() {
     const s = game.state;
-    const total = REGIONS.length;
-    this.hudText.setText(`◆ 조각 ${s.fragments.length}/${total}   ● 보석 ${s.gems.length}/${total}   ✿ 봄 ${s.restored.length}/${total}`);
+    const season = this.region?.season ?? 'spring';
+    const keys = regionsOf(season).map((r) => r.key);
+    const count = (list: string[]) => list.filter((k) => keys.includes(k)).length;
+    const total = keys.length;
+    const icon = season === 'spring' ? '✿' : '☀';
+    this.hudText.setText(
+      `◆ 조각 ${count(s.fragments)}/${total}   ● 보석 ${count(s.gems)}/${total}   ${icon} ${seasonOf(season).name} ${count(s.restored)}/${total}`,
+    );
     const goal = this.currentGoal();
     this.goalText.setText(goal).setVisible(goal !== '');
   }

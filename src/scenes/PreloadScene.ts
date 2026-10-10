@@ -35,10 +35,8 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('face-pet', 'assets/actors/pet-face.png');
     for (const item of RARE_ITEMS) this.load.image(`item-${item.id}`, `assets/items/${item.id}.png`);
     for (const key of SFX) this.load.audio(`sfx-${key}`, `assets/audio/sfx-${key}.wav`);
-    for (const r of REGIONS) {
-      this.load.image(`gem-${r.gem}`, `assets/items/gem-${r.gem}.png`);
-      this.load.image(`face-${r.memory.face}`, `assets/faces/${r.memory.face}.png`);
-    }
+    for (const gem of new Set(REGIONS.map((r) => r.gem))) this.load.image(`gem-${gem}`, `assets/items/gem-${gem}.png`);
+    for (const face of new Set(REGIONS.map((r) => r.memory.face))) this.load.image(`face-${face}`, `assets/faces/${face}.png`);
   }
 
   create() {

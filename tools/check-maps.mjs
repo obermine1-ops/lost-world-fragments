@@ -1,9 +1,9 @@
 // 지도 검사: 모든 보석·조각·제단·흙더미·너구리·길목에 실제로 걸어서 닿을 수 있는지 확인한다.
 // (진행 불가 버그 예방) 실행: npm run check-maps
 // - 열리는 길(돌무더기·잠긴 문)은 "열기 전"에도 그 길을 여는 데 필요한 것(흙더미·열쇠)에 닿을 수 있어야 한다.
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
-const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d'];
+const MAPS = readdirSync('public/maps').filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5));
 const T = 16;
 let failures = 0;
 
