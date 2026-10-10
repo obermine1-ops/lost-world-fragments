@@ -71,3 +71,22 @@ export function furnitureFrom(source: string) {
 }
 
 export const ALL_SEASONS = SEASONS.map((s) => s.key);
+
+// 집 벽지·바닥: 처음 하나, 계절을 하나 되찾을 때마다 하나씩 더 쓸 수 있다.
+// wall: TilesetWallSimple 안에서 그 색 벽 세트의 왼쪽 위 번호 / floor: TilesetInteriorFloor 번호
+export const WALLPAPERS = [
+  { name: '살구색 벽', base: 0 },
+  { name: '주황 벽', base: 5, from: 'spring' },
+  { name: '갈색 벽', base: 60, from: 'summer' },
+  { name: '초록 벽', base: 65, from: 'autumn' },
+];
+export const FLOORS = [
+  { name: '나무 마루', frame: 287 },
+  { name: '베이지 타일', frame: 34, from: 'spring' },
+  { name: '초록 돌바닥', frame: 170, from: 'summer' },
+  { name: '짙은 원목', frame: 302, from: 'autumn' },
+];
+
+export function unlockedStyles<T extends { from?: string }>(list: T[], s: GameState) {
+  return list.filter((o) => !o.from || regionsOf(o.from as 'spring').every((r) => s.restored.includes(r.key)));
+}

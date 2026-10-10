@@ -4,8 +4,8 @@ import { MAPS, newGame, type GameState } from './state';
 // 저장 형식이 바뀌면 VERSION을 올리고 migrate에서 옛 기록을 새 형식으로 고친다.
 const KEY = 'lost-world-fragments/save';
 // v1: 색 복원이 세상 전체 하나(restored: boolean) / v2: 지역별 복원 목록 + 보석 / v3: 너구리·흙더미·희귀 아이템
-// v4: 열린 길(유적의 돌무더기·잠긴 문) / v5: 개구리(여름) / v6: 나의 집 배치 / v7: 숨은 반딧불 / v8: 앵무새(가을)
-const VERSION = 8;
+// v4: 열린 길(유적의 돌무더기·잠긴 문) / v5: 개구리(여름) / v6: 나의 집 배치 / v7: 숨은 반딧불 / v8: 앵무새(가을) / v9: 집 벽지·바닥
+const VERSION = 9;
 
 interface SaveFile {
   version: number;
@@ -69,6 +69,8 @@ function migrate(file: { version?: number; state?: Record<string, unknown> }): G
     items: strings(s.items),
     opened: strings(s.opened),
     fireflies: strings(s.fireflies),
+    wallpaper: typeof s.wallpaper === 'number' ? s.wallpaper : 0,
+    floor: typeof s.floor === 'number' ? s.floor : 0,
     house: Array.isArray(s.house)
       ? (s.house as unknown[]).filter(
           (h): h is { key: string; x: number; y: number } =>

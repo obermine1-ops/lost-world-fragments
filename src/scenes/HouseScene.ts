@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { FONT, addButton, fadeIn, fadeTo } from '../ui';
 import { game } from '../state';
 import { saveGame } from '../save';
-import { ownedPlaceables, type Placeable } from '../furniture';
+import { FLOORS, WALLPAPERS, ownedPlaceables, unlockedStyles, type Placeable } from '../furniture';
 import { music, sfx } from '../sound';
 import { WorldColor } from '../worldColor';
 
@@ -11,9 +11,8 @@ const ROOM_W = 11;
 const ROOM_H = 9;
 const SCALE = 2;
 const CELL = 16 * SCALE;
-// 벽 (TilesetWallSimple, 10열): 왼위·위·오위 / 왼·오 / 왼아래·아래·오아래
+// 벽 (TilesetWallSimple, 10열): 색 세트 왼쪽 위 번호(base)에서 왼위·위·오위 / 왼·오 / 왼아래·아래·오아래
 const WALL = { tl: 0, t: 2, tr: 4, l: 20, r: 24, bl: 40, b: 42, br: 44 };
-const FLOOR = 287; // 나무 마루 (TilesetInteriorFloor)
 // 상자 한 줄 8칸 (물건이 30개쯤까지 4줄로 들어간다)
 const TRAY_COLS = 8;
 const TRAY_SLOT = 40;
@@ -28,6 +27,7 @@ export class HouseScene extends Phaser.Scene {
   private tray!: Phaser.GameObjects.Container;
   private hint!: Phaser.GameObjects.Text;
   private ghost?: Phaser.GameObjects.Container;
+  private roomLayer!: Phaser.GameObjects.Container;
 
   constructor() {
     super('House');
@@ -49,10 +49,27 @@ export class HouseScene extends Phaser.Scene {
 
     this.roomX = Math.round((width - ROOM_W * CELL) / 2);
     this.roomY = 64;
+    this.roomLayer = this.add.container(0, 0);
     this.drawRoom();
     this.placedLayer = this.add.container(0, 0);
     this.tray = this.add.container(0, 0);
     this.refresh();
+
+    // 벽지·바닥 바꾸기 (계절을 되찾을수록 고를 수 있는 것이 늘어난다)
+    const styleButton = (x: number, kind: 'wallpaper' | 'floor') =>
+      addButton(this, x, height - 30, kind === 'wallpaper' ? '벽지' : '바닥', () => {
+        const s = game.state;
+        const list = kind === 'wallpaper' ? WALLPAPERS : FLOORS;
+        const open = unlockedStyles(list as { name: string; from?: string }[], s);
+        const index = (open.indexOf(list[s[kind]] as { name: string; from?: string }) + 1) % open.length;
+        s[kind] = list.indexOf(open[index] as never);
+        saveGame(s);
+        sfx(this, 'flip', 0.4);
+        this.drawRoom();
+        this.hint.setText(`${open[index].name} (${open.length}/${list.length}가지 중) — 계절을 되찾으면 더 생겨요`);
+      }, 70, 36);
+    styleButton(46, 'wallpaper');
+    styleButton(width - 46, 'floor');
 
     addButton(this, width / 2, height - 30, '밖으로', () => {
       game.state.map = 'meadow-a';
@@ -63,16 +80,21 @@ export class HouseScene extends Phaser.Scene {
   }
 
   private drawRoom() {
+    this.roomLayer.removeAll(true);
+    const s = game.state;
+    const wall = (WALLPAPERS[s.wallpaper] ?? WALLPAPERS[0]).base;
+    const floor = (FLOORS[s.floor] ?? FLOORS[0]).frame;
     for (let y = 0; y < ROOM_H; y++)
       for (let x = 0; x < ROOM_W; x++) {
         const px = this.roomX + x * CELL + CELL / 2;
         const py = this.roomY + y * CELL + CELL / 2;
         const inner = x > 0 && y > 0 && x < ROOM_W - 1 && y < ROOM_H - 1;
-        this.add.image(px, py, 'ifloor-sheet', FLOOR).setScale(SCALE);
+        this.roomLayer.add(this.add.image(px, py, 'ifloor-sheet', floor).setScale(SCALE));
         if (inner) {
           // 바닥 칸: 누르면 들고 있는 물건을 놓는다.
           const cell = this.add.rectangle(px, py, CELL, CELL, 0xffffff, 0).setInteractive();
           cell.on('pointerup', () => this.onCell(x, y));
+          this.roomLayer.add(cell);
           continue;
         }
         const top = y === 0;
@@ -84,7 +106,7 @@ export class HouseScene extends Phaser.Scene {
           : bottom
             ? left ? WALL.bl : right ? WALL.br : WALL.b
             : left ? WALL.l : WALL.r;
-        this.add.image(px, py, 'wall-sheet', frame).setScale(SCALE);
+        this.roomLayer.add(this.add.image(px, py, 'wall-sheet', wall + frame).setScale(SCALE));
       }
   }
 
