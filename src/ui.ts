@@ -12,9 +12,10 @@ export function fadeIn(scene: Phaser.Scene) {
 }
 
 // 화면을 어둡게 한 뒤 다음 장면으로 넘어간다. 전환 중 중복 탭은 무시한다.
+// (장면이 밝아지는 중에 누른 것은 받아 준다 — 전에는 막혀서 빨리 누르면 반응이 없었다)
 export function fadeTo(scene: Phaser.Scene, key: string, data?: object) {
   const cam = scene.cameras.main;
-  if (cam.fadeEffect.isRunning) return;
+  if (!scene.input.enabled) return;
   scene.input.enabled = false;
   for (const c of scene.cameras.cameras) c.fadeOut(FADE_MS, 0, 0, 0);
   cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => scene.scene.start(key, data));
