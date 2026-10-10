@@ -20,6 +20,11 @@ export class NavGrid {
     private readonly blocked: boolean[],
   ) {}
 
+  // 시든 나무처럼 나중에 사라지는 장애물용
+  setBlocked(tx: number, ty: number, blocked: boolean) {
+    if (tx >= 0 && ty >= 0 && tx < this.width && ty < this.height) this.blocked[ty * this.width + tx] = blocked;
+  }
+
   walkable(tx: number, ty: number) {
     return tx >= 0 && ty >= 0 && tx < this.width && ty < this.height && !this.blocked[ty * this.width + tx];
   }

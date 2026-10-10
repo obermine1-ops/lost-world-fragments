@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { FONT } from '../ui';
 import { DIRECTIONS } from '../actor';
 import { MAPS } from '../state';
+import { REGIONS } from '../regions';
 
 // 게임에 필요한 그림·지도를 처음에 한 번 불러온다.
 export class PreloadScene extends Phaser.Scene {
@@ -16,11 +17,20 @@ export class PreloadScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.load.on('progress', (p: number) => label.setText(`불러오는 중… ${Math.round(p * 100)}%`));
 
+    // 지도 타일 (지도용 이미지와, 낱개로 꺼내 쓰는 스프라이트용 두 가지)
     this.load.image('tiles-floor', 'assets/tilesets/TilesetFloor.png');
     this.load.image('tiles-water', 'assets/tilesets/TilesetWater.png');
     this.load.image('tiles-nature', 'assets/tilesets/TilesetNature.png');
+    const tile = { frameWidth: 16, frameHeight: 16 };
+    this.load.spritesheet('nature-sheet', 'assets/tilesets/TilesetNature.png', tile);
+    this.load.spritesheet('dungeon-sheet', 'assets/tilesets/TilesetDungeon.png', tile);
     for (const key of MAPS) this.load.tilemapTiledJSON(key, `maps/${key}.json`);
-    this.load.spritesheet('hero', 'assets/actors/hero.png', { frameWidth: 16, frameHeight: 16 });
+
+    this.load.spritesheet('hero', 'assets/actors/hero.png', tile);
+    for (const r of REGIONS) {
+      this.load.image(`gem-${r.gem}`, `assets/items/gem-${r.gem}.png`);
+      this.load.image(`face-${r.memory.face}`, `assets/faces/${r.memory.face}.png`);
+    }
   }
 
   create() {

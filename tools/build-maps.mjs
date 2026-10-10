@@ -133,6 +133,19 @@ class MapBuilder {
     }
   }
 
+  // 이 지역의 보석·기억의 조각·제단 (id는 지역 이름)
+  treasures({ gem, fragment, altar }) {
+    this.point('gem', gem[0], gem[1], { id: this.name });
+    this.point('fragment', fragment[0], fragment[1], { id: this.name });
+    this.point('altar', altar[0], altar[1], { id: this.name });
+    this.block(altar[0], altar[1]);
+  }
+
+  // 시든 나무가 길을 막는 칸 범위. region 지역이 복원되면 사라진다.
+  barrier(x, y, w, h, region) {
+    this.objects.push({ name: 'barrier', x: x * TILE, y: y * TILE, w: w * TILE, h: h * TILE, props: { region } });
+  }
+
   // 다른 지역으로 넘어가는 칸 범위. 들어서면 to 지도의 spawn 지점에 나타난다.
   exit(x, y, w, h, to, spawn) {
     this.objects.push({ name: 'exit', x: x * TILE, y: y * TILE, w: w * TILE, h: h * TILE, props: { to, spawn } });
@@ -242,8 +255,10 @@ function meadowA() {
   for (const [kind, x, y] of trees) m.tree(kind, x, y);
 
   m.point('start', 14, 46);
-  m.point('from-forest-b', 14, 3);
+  m.point('from-forest-b', 14, 4);
   m.exit(12, 0, 6, 1, 'forest-b', 'from-meadow-a');
+  m.barrier(12, 2, 6, 2, 'meadow-a');
+  m.treasures({ gem: [3, 29], fragment: [23, 8], altar: [17, 26] });
 
   const nearPath = (x, y) => x >= 12 && x <= 16;
   m.scatter(BUSHES, 14, true, nearPath);
@@ -275,9 +290,11 @@ function forestB() {
   for (const [kind, x, y] of trees) m.tree(kind, x, y);
 
   m.point('from-meadow-a', 11, H - 3);
-  m.point('from-hill-c', 11, 2);
+  m.point('from-hill-c', 11, 4);
   m.exit(10, H - 1, 4, 1, 'meadow-a', 'from-forest-b');
   m.exit(10, 0, 4, 1, 'hill-c', 'from-forest-b');
+  m.barrier(10, 2, 4, 2, 'forest-b');
+  m.treasures({ gem: [19, 25], fragment: [4, 19], altar: [14, 20] });
 
   const nearPath = (x, y) => x >= 9 && x <= 14;
   m.scatter(BUSHES, 22, true, nearPath);
@@ -309,7 +326,7 @@ function hillC() {
   ];
   for (const [kind, x, y] of trees) m.tree(kind, x, y);
 
-  m.point('fragment', 15, 15, { id: 'spring-1' });
+  m.treasures({ gem: [4, 24], fragment: [15, 16], altar: [15, 13] });
   for (const [x, y] of [[13, 13], [17, 13], [12, 17], [18, 17]]) m.single(CRYSTALS, x, y, false, true);
   m.point('from-forest-b', 14, H - 3);
   m.exit(12, H - 1, 6, 1, 'forest-b', 'from-hill-c');

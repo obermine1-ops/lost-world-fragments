@@ -80,7 +80,11 @@ export class PuzzleScene extends Phaser.Scene {
     const top = areaTop + (areaHeight - gridHeight) / 2 + cardHeight / 2;
 
     symbols.forEach((symbol, i) => {
-      const x = left + (i % cols) * (cardWidth + CARD_GAP);
+      // 마지막 줄이 덜 찼으면 가운데로 모은다.
+      const row = Math.floor(i / cols);
+      const inRow = Math.min(cols, count - row * cols);
+      const shift = ((cols - inRow) * (cardWidth + CARD_GAP)) / 2;
+      const x = left + shift + (i % cols) * (cardWidth + CARD_GAP);
       const y = top + Math.floor(i / cols) * (cardHeight + CARD_GAP);
       this.cards.push(this.createCard(x, y, cardWidth, cardHeight, symbol));
     });
