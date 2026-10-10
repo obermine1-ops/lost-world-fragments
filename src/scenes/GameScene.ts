@@ -10,7 +10,7 @@ import { game } from '../state';
 import { saveGame } from '../save';
 import { REGIONS, regionOf, regionsOf, seasonOf, type Region } from '../regions';
 import { itemOf, withJosa } from '../items';
-import { Pet } from '../pet';
+import { PET_TEXTURE, Pet, type PetKind } from '../pet';
 import type { CollectionData } from './CollectionScene';
 
 // 타일 16px 그림을 2배로 확대해 보여준다. (폰 화면에 가로 약 11칸 × 세로 20칸)
@@ -36,6 +36,7 @@ const ALTAR_FILLED = 27; // 구슬이 올라간 받침돌 — 보석 색으로 �
 const DIRT_MOUND = 448; // 흙더미 (TilesetNature)
 const RUBBLE = [86, 87, 88, 89, 90]; // 돌무더기 (TilesetVillageAbandoned)
 const LOCKED_DOOR = 0; // 열쇠 구멍이 있는 문 (TilesetDungeon)
+const LILY_PAD = 95; // 물 위의 연잎 (TilesetWater)
 
 // 지도 물체에 붙은 사용자 정의 값 (예: 길목의 도착 지도 이름)
 function prop(obj: Phaser.Types.Tilemaps.TiledObject, name: string): string | undefined {
@@ -88,7 +89,8 @@ export class GameScene extends Phaser.Scene {
   private altar?: Phaser.GameObjects.Image;
   private barriers: Barrier[] = [];
   private spots: Spot[] = [];
-  private pet?: Pet;
+  private pets: Pet[] = []; // 동료 동물 (너구리 → 개구리 순으로 줄지어 따라온다)
+  private collideLayer!: Phaser.Tilemaps.TilemapLayer;
 
   constructor() {
     super('Game');
@@ -104,7 +106,7 @@ export class GameScene extends Phaser.Scene {
     this.altar = undefined;
     this.barriers = [];
     this.spots = [];
-    this.pet = undefined;
+    this.pets = [];
     this.region = regionOf(state.map);
     this.world = this.add.layer();
     this.glow = this.add.layer();
@@ -126,6 +128,7 @@ export class GameScene extends Phaser.Scene {
     layer('decor', DEPTH.decor);
     layer('above', DEPTH.above);
     const collide = map.createLayer('collide', tilesets)!.setVisible(false);
+    this.collideLayer = collide;
     collide.setCollisionByExclusion([-1]);
     const blocked: boolean[] = [];
     for (let y = 0; y < map.height; y++)
@@ -152,7 +155,8 @@ export class GameScene extends Phaser.Scene {
     // 장애물에 비스듬히 닿으면 미끄러지듯 비켜 가고, 정면으로 막히면 update에서 멈춘다.
     this.physics.add.collider(this.player, collide);
 
-    if (state.pet) this.addPet(start.x - 14, start.y + 4);
+    if (state.pet) this.addPet('raccoon', start.x - 14, start.y + 4);
+    if (state.frog) this.addPet('frog', start.x - 28, start.y + 6);
     this.placeObjects(objects);
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -212,10 +216,11 @@ export class GameScene extends Phaser.Scene {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     this.playerAnim.update(body.velocity.x, body.velocity.y);
     sortByY(this.player);
-    if (this.pet) {
-      this.pet.update(delta, body.center);
-      sortByY(this.pet.sprite);
-    }
+    // 첫 동물은 플레이어를, 다음 동물은 앞 동물을 따라간다.
+    this.pets.forEach((pet, i) => {
+      pet.update(delta, i === 0 ? body.center : this.pets[i - 1].sprite);
+      sortByY(pet.sprite);
+    });
     if (this.time.now - this.lastSaveAt > SAVE_EVERY_MS) {
       this.lastSaveAt = this.time.now;
       this.savePosition();
@@ -268,7 +273,10 @@ export class GameScene extends Phaser.Scene {
         this.glow.add(this.altar);
         this.addSpot(o.x!, o.y! + 4, ALTAR_REACH, () => this.useAltar(region));
       }
-      if (o.name === 'pet' && !state.pet) this.placeWaitingPet(o.x!, o.y!);
+      if (o.name === 'pet') {
+        const kind = (prop(o, 'kind') ?? 'raccoon') as PetKind;
+        if (!(kind === 'frog' ? state.frog : state.pet)) this.placeWaitingPet(kind, o.x!, o.y!);
+      }
       if (o.name === 'dig' && id && !state.dug.includes(id)) this.placeMound(o.x!, o.y!, id, prop(o, 'reward')!);
       if (o.name === 'barrier') this.placeBarrier(o);
       // 지역 길목: 들어서면 화면이 어두워졌다가 다음 지역의 길목에서 나타난다.
@@ -324,6 +332,11 @@ export class GameScene extends Phaser.Scene {
     const id = prop(o, 'id')!;
     const unlock = prop(o, 'unlock')!;
     const look = prop(o, 'look')!;
+    // 연잎 다리는 물 위의 길이라 따로 다룬다.
+    if (look === 'lilypad') {
+      this.placeBridge(o, id);
+      return;
+    }
     if (unlock.startsWith('restore:') ? state.restored.includes(unlock.slice(8)) : state.opened.includes(id)) return;
 
     const sprites: Phaser.GameObjects.Image[] = [];
@@ -367,6 +380,51 @@ export class GameScene extends Phaser.Scene {
         this.showMessage(`${withJosa(itemOf(key)?.name ?? key, '으로', '로')} 문을 열었다`);
       });
     }
+  }
+
+  // 연잎 다리: 바다(원래 막힌 칸) 위에 연잎을 띄워 건널 수 있게 한다.
+  // 다리를 놓기 전에는 물가(다리 머리)에 다가가면 개구리가 있는지 확인한다.
+  private placeBridge(o: Phaser.Types.Tilemaps.TiledObject, id: string) {
+    const tx0 = Math.floor(o.x! / 16);
+    const ty0 = Math.floor(o.y! / 16);
+    const tw = Math.round(o.width! / 16);
+    const th = Math.round(o.height! / 16);
+    const build = (animate: boolean) => {
+      for (let ty = ty0; ty < ty0 + th; ty++)
+        for (let tx = tx0; tx < tx0 + tw; tx++) {
+          this.collideLayer.removeTileAt(tx, ty);
+          this.nav.setBlocked(tx, ty, false);
+          const pad = this.add.image(tx * 16 + 8, ty * 16 + 8, 'water-sheet', LILY_PAD).setDepth(DEPTH.decor + 0.4);
+          this.glow.add(pad);
+          if (animate) {
+            pad.setScale(0).setAlpha(0);
+            this.tweens.add({ targets: pad, scale: 1, alpha: 1, duration: 300, delay: (ty - ty0) * 140 + (tx - tx0) * 40, ease: 'Back.easeOut' });
+          }
+        }
+    };
+    if (game.state.opened.includes(id)) {
+      build(false);
+      return;
+    }
+    const spot = this.addSpot(o.x! + o.width! / 2, o.y! - 10, ALTAR_REACH + 4, () => {
+      const frog = this.frog;
+      if (!frog) {
+        this.showMessage('바다 건너 희미하게 섬이 보인다…\n물 위를 건널 방법이 없을까');
+        return;
+      }
+      this.spots = this.spots.filter((s) => s !== spot);
+      this.busy = true;
+      this.stopMoving();
+      frog.runTo(o.x! + o.width! / 2, o.y! - 4, () => {
+        this.tweens.add({ targets: frog.sprite, y: frog.sprite.y - 6, duration: 160, yoyo: true, repeat: 2 });
+        sfx(this, 'secret', 0.5);
+        build(true);
+        game.state.opened.push(id);
+        this.savePosition();
+        this.showMessage('개구리가 연잎을 띄워\n바다 위에 길을 만들었다!');
+        this.time.delayedCall(th * 140 + 400, () => (this.busy = false));
+      });
+    });
   }
 
   // 막힌 길을 연다 (기록해 두어 다시 막히지 않는다)
@@ -441,11 +499,19 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // ── 너구리 ───────────────────────────────────────────────
+  // ── 동료 동물 (너구리·개구리) ─────────────────────────────
 
-  // 아직 동료가 아닌 너구리: 흑백 세상에서 웅크리고 있다.
-  private placeWaitingPet(x: number, y: number) {
-    const sprite = this.add.sprite(x, y, 'pet', 0).setFlipX(true);
+  private get raccoon() {
+    return this.pets.find((p) => p.kind === 'raccoon');
+  }
+
+  private get frog() {
+    return this.pets.find((p) => p.kind === 'frog');
+  }
+
+  // 아직 동료가 아닌 동물: 흑백 세상에서 웅크리고 있다.
+  private placeWaitingPet(kind: PetKind, x: number, y: number) {
+    const sprite = this.add.sprite(x, y, PET_TEXTURE[kind], 0).setFlipX(kind === 'raccoon');
     sortByY(sprite);
     this.world.add(sprite);
     this.tweens.add({ targets: sprite, scaleY: 0.92, duration: 800, yoyo: true, repeat: -1 });
@@ -453,24 +519,34 @@ export class GameScene extends Phaser.Scene {
       this.spots = this.spots.filter((s) => s !== spot);
       this.tweens.killTweensOf(sprite);
       sprite.destroy();
-      this.addPet(x, y);
-      // 동료가 된 순간 너구리에게 먼저 색이 돌아온다.
-      this.tweens.add({ targets: this.pet!.sprite, scale: 1.4, duration: 250, yoyo: true });
-      game.state.pet = true;
+      const pet = this.addPet(kind, x, y);
+      // 동료가 된 순간 그 동물에게 먼저 색이 돌아온다.
+      this.tweens.add({ targets: pet.sprite, scale: 1.4, duration: 250, yoyo: true });
+      if (kind === 'frog') game.state.frog = true;
+      else game.state.pet = true;
       sfx(this, 'pet');
       this.savePosition();
-      this.showMessage('외로워 보이던 너구리가\n졸졸 따라오기 시작했다');
-      this.time.delayedCall(2700, () => this.showMessage('너구리와 함께라면\n흙더미를 파 볼 수 있을 것 같다'));
+      this.updateHud();
+      if (kind === 'frog') {
+        this.showMessage('연못가의 개구리가\n폴짝폴짝 따라오기 시작했다');
+        this.time.delayedCall(2700, () => this.showMessage('개구리와 함께라면\n물 위에 연잎을 띄울 수 있을 것 같다'));
+      } else {
+        this.showMessage('외로워 보이던 너구리가\n졸졸 따라오기 시작했다');
+        this.time.delayedCall(2700, () => this.showMessage('너구리와 함께라면\n흙더미를 파 볼 수 있을 것 같다'));
+      }
     });
   }
 
-  // 동료 너구리는 흑백 세상에서도 컬러로 보인다.
-  private addPet(x: number, y: number) {
-    this.pet = new Pet(this, x, y);
-    const sprite = this.pet.sprite;
+  // 동료 동물은 흑백 세상에서도 컬러로 보인다.
+  private addPet(kind: PetKind, x: number, y: number) {
+    const pet = new Pet(this, kind, x, y);
+    // 너구리가 맨 앞, 개구리는 그 뒤
+    this.pets.push(pet);
+    this.pets.sort((a, b) => (a.kind === 'raccoon' ? -1 : 0) - (b.kind === 'raccoon' ? -1 : 0));
+    const sprite = pet.sprite;
     sortByY(sprite);
     this.glow.add(sprite);
-    // 너구리를 탭하면 쓰다듬어 준다 (하트)
+    // 동물을 탭하면 쓰다듬어 준다 (하트)
     sprite.setInteractive({ useHandCursor: true }).on('pointerup', () => {
       sfx(this, 'pet', 0.5);
       this.tweens.add({ targets: sprite, scaleY: 0.8, duration: 90, yoyo: true, repeat: 1 });
@@ -479,6 +555,7 @@ export class GameScene extends Phaser.Scene {
       this.glow.add(heart);
       this.tweens.add({ targets: heart, y: heart.y - 12, alpha: 0, duration: 900, onComplete: () => heart.destroy() });
     });
+    return pet;
   }
 
   // ── 흙더미 ───────────────────────────────────────────────
@@ -490,7 +567,7 @@ export class GameScene extends Phaser.Scene {
     // 가끔 들썩여서 눈에 띄게 한다.
     this.tweens.add({ targets: mound, y: y - 1, duration: 120, yoyo: true, repeat: 1, repeatDelay: 80, loop: -1, loopDelay: 2200 });
     const spot = this.addSpot(x, y, TOUCH_REACH + 4, () => {
-      if (!this.pet) {
+      if (!this.raccoon) {
         this.showMessage('흙이 볼록 솟아 있다…\n땅을 잘 파는 친구가 있으면 좋을 텐데');
         return;
       }
@@ -501,7 +578,7 @@ export class GameScene extends Phaser.Scene {
 
   // 너구리가 흙더미로 달려가 파내면, 묻혀 있던 것이 튀어나온다.
   private dig(mound: Phaser.GameObjects.Image, id: string, reward: string) {
-    const pet = this.pet!;
+    const pet = this.raccoon!;
     this.busy = true;
     this.stopMoving();
     pet.runTo(mound.x - 6, mound.y + 2, () => {
@@ -737,7 +814,8 @@ export class GameScene extends Phaser.Scene {
       return '목표: 열린 길을 따라 다음 장소로';
     }
     if (!s.gems.includes(r.key)) {
-      if (r.key === 'hill-c' && !s.pet) return '목표: 땅을 파는 친구가 필요하다 (들판의 너구리)';
+      // 보석이 땅속에 묻힌 곳(언덕·섬)은 너구리가 있어야 찾을 수 있다
+      if (['hill-c', 'island-g'].includes(r.key) && !s.pet) return '목표: 땅을 파는 친구가 필요하다 (들판의 너구리)';
       return `목표: 이곳 어딘가의 ${r.gemName} 보석 찾기`;
     }
     if (!s.fragments.includes(r.key)) return '목표: 흩어진 기억의 조각 찾기';

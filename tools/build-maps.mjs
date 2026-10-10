@@ -41,6 +41,8 @@ const RUINS = {
   pillar: [[60, 61], [80, 81], [100, 101]], // 부서진 굵은 기둥
   thinPillar: [[62], [82], [102]],
   statue: [[109, 110], [129, 130]], // 이끼 낀 개구리 석상
+  hut: [[11, 12, 13], [31, 32, 33], [51, 52, 53]], // 창문 달린 작은 집
+  shrine: [[14, 15, 16], [34, 35, 36], [54, 55, 56]], // 주황 지붕 사당
 };
 const RUBBLE = [86, 87, 88, 89, 90]; // 돌무더기 (TilesetVillageAbandoned)
 const TREES = {
@@ -109,7 +111,8 @@ class MapBuilder {
   }
 
   // 나무는 2×2. (x, y)는 밑동 왼쪽 칸. 밑동 줄은 막히고, 윗줄은 캐릭터보다 위에 그려진다.
-  tree(kind, x, y) {
+  // solidTop: 윗줄까지 막는다 (테두리 나무 — 나무 사이로 빠져나가 길목 장벽을 돌아가지 못하게)
+  tree(kind, x, y, solidTop = false) {
     if (!this.inside(x, y - 1) || !this.inside(x + 1, y)) return;
     const [tl, tr, bl, br] = TREES[kind];
     this.above[this.i(x, y - 1)] = gid('nature', tl);
@@ -119,6 +122,10 @@ class MapBuilder {
     for (const [xx, yy] of [[x, y], [x + 1, y], [x, y - 1], [x + 1, y - 1]]) this.taken[this.i(xx, yy)] = true;
     this.block(x, y);
     this.block(x + 1, y);
+    if (solidTop) {
+      this.block(x, y - 1);
+      this.block(x + 1, y - 1);
+    }
   }
 
   // 3×3 큰 나무. (x, y)는 밑동 가운데 칸.
@@ -138,16 +145,17 @@ class MapBuilder {
     this.block(x + 1, y);
   }
 
-  // 지도 가장자리를 나무로 두른다. gaps: { top: [x0, x1], bottom: [x0, x1] } — 길목으로 비워 둘 칸 범위
+  // 지도 가장자리를 나무로 두른다. gaps: { top/bottom: [x0, x1], left/right: [y0, y1] } — 길목으로 비워 둘 칸 범위
   border(kind, gaps = {}, { bottom = true } = {}) {
     const open = (range, x) => range && x + 1 >= range[0] && x <= range[1];
     for (let x = 0; x < this.width; x += 2) {
-      if (!open(gaps.top, x)) this.tree(kind, x, 1);
-      if (bottom && !open(gaps.bottom, x)) this.tree(kind, x, this.height - 1);
+      if (!open(gaps.top, x)) this.tree(kind, x, 1, true);
+      if (bottom && !open(gaps.bottom, x)) this.tree(kind, x, this.height - 1, true);
     }
     for (let y = 3; y < this.height - 1; y += 2) {
-      this.tree(kind, 0, y);
-      this.tree(kind, this.width - 2, y);
+      // 나무는 (y-1, y) 두 줄을 차지하므로, 길목 범위와 한 줄이라도 겹치면 비운다.
+      if (!open(gaps.left, y - 1)) this.tree(kind, 0, y, true);
+      if (!open(gaps.right, y - 1)) this.tree(kind, this.width - 2, y, true);
     }
   }
 
@@ -316,7 +324,7 @@ function meadowA() {
   m.exit(12, 0, 6, 1, 'forest-b', 'from-meadow-a');
   m.barrier(12, 2, 6, 2, { id: 'meadow-gate', unlock: 'restore:meadow-a', look: 'dead-tree' });
   m.treasures({ gem: [3, 29], fragment: [23, 8], altar: [17, 26] });
-  m.point('pet', 7, 32);
+  m.point('pet', 7, 32, { kind: 'raccoon' });
   m.dig(25, 30, 'pan-flute');
 
   const nearPath = (x, y) => x >= 12 && x <= 16;
@@ -472,7 +480,7 @@ function beachE() {
   m.area('sea', 4, 14, 5, 4); // 조수 웅덩이
   m.area('sea', 21, 8, 5, 3); // 바위 웅덩이
 
-  m.border('round', { top: [12, 17] }, { bottom: false });
+  m.border('round', { top: [12, 17], right: [16, 19] }, { bottom: false });
   const trees = [
     ['round', 3, 6], ['green', 7, 4], ['round', 22, 4], ['green', 25, 13], ['round', 18, 18],
     ['round', 3, 22], ['green', 10, 21], ['round', 24, 22],
@@ -482,6 +490,9 @@ function beachE() {
   m.point('start', 14, 4);
   m.point('from-meadow-a', 14, 3);
   m.exit(12, 0, 6, 1, 'meadow-a', 'from-beach-e');
+  m.point('from-village-f', 25, 17);
+  m.exit(W - 1, 16, 1, 4, 'village-f', 'from-beach-e');
+  m.barrier(W - 3, 16, 2, 4, { id: 'beach-east', unlock: 'restore:beach-e', look: 'dead-tree' });
   m.treasures({ gem: [26, 24], fragment: [6, 19], altar: [14, 12] });
   m.dig(20, 22, 'old-coin');
 
@@ -494,8 +505,84 @@ function beachE() {
   return m;
 }
 
+// ── 바닷가 마을 터 F ──────────────────────────────────────
+// 아무도 살지 않는 바닷가 마을. 물가에서 개구리를 만나면, 남쪽 바다에 연잎 다리를 놓아 숨겨진 섬으로 건널 수 있다.
+function villageF() {
+  const W = 30;
+  const H = 36;
+  const m = new MapBuilder('village-f', '바닷가 마을 터', W, H, 20261021, { base: 'sand' });
+
+  m.area('sea', 0, 28, W, H - 28); // 남쪽 바다
+  m.area('pond', 20, 20, 5, 4); // 마을 우물가 연못 (개구리가 사는 곳)
+  m.area('dirt', 4, 8, 22, 3); // 마을 길
+
+  m.border('round', { left: [16, 19] }, { bottom: false });
+  m.stamp('ruins', RUINS.house, 3, 3, 2);
+  m.stamp('ruins', RUINS.hut, 9, 3, 2);
+  m.stamp('ruins', RUINS.shrine, 16, 2, 2);
+  m.stamp('ruins', RUINS.hut, 22, 3, 2);
+  m.stamp('ruins', RUINS.pillar, 4, 13, 2);
+  m.stamp('ruins', RUINS.statue, 12, 14, 1);
+  const trees = [['round', 8, 22], ['green', 26, 14], ['round', 3, 25], ['green', 16, 24]];
+  for (const [kind, x, y] of trees) m.tree(kind, x, y);
+
+  m.point('from-beach-e', 2, 17);
+  m.exit(0, 16, 1, 4, 'beach-e', 'from-village-f');
+  m.point('pet', 19, 25, { kind: 'frog' });
+  m.treasures({ gem: [26, 6], fragment: [7, 19], altar: [14, 11] });
+  m.dig(22, 16, 'gourd');
+
+  // 남쪽 바다를 건너는 연잎 다리 (개구리와 함께 물가에 서면 생긴다) → 숨겨진 섬
+  m.point('from-island-g', 14, 26);
+  m.barrier(14, 28, 2, H - 28, { id: 'island-bridge', unlock: 'pet:frog', look: 'lilypad' });
+  m.exit(14, H - 1, 2, 1, 'island-g', 'from-village-f');
+
+  const keepClear = (x, y) => (x >= 12 && x <= 17 && y >= 24) || (y >= 8 && y <= 10);
+  m.scatter(ROCKS, 8, true, keepClear);
+  m.scatter(BUSHES, 8, true, keepClear);
+  m.scatter([270, 266, 264], 25, false, keepClear);
+
+  m.paintGround();
+  return m;
+}
+
+// ── 숨겨진 섬 G ───────────────────────────────────────────
+// 바다 한가운데의 작은 섬. 커다란 나무 아래 제단에서 여름의 마지막 기억을 되찾는다.
+function islandG() {
+  const W = 24;
+  const H = 30;
+  const m = new MapBuilder('island-g', '숨겨진 섬', W, H, 20261022, { base: 'sand' });
+
+  // 사방이 바다, 북쪽 모래톱만 마을 쪽 연잎 다리와 이어진다.
+  m.area('sea', 0, 0, 13, 3);
+  m.area('sea', 17, 0, W - 17, 3);
+  m.area('sea', 0, 3, 2, H - 3);
+  m.area('sea', W - 2, 3, 2, H - 3);
+  m.area('sea', 2, H - 3, W - 4, 3);
+  m.area('pond', 15, 18, 4, 3); // 섬 안의 샘
+
+  m.bigTree('green', 12, 12);
+  m.bigTree('cherry', 5, 20);
+  const trees = [['round', 4, 8], ['round', 19, 9], ['green', 18, 24], ['round', 8, 25]];
+  for (const [kind, x, y] of trees) m.tree(kind, x, y);
+
+  m.point('from-village-f', 14, 4);
+  m.exit(13, 0, 4, 1, 'village-f', 'from-island-g');
+  m.treasures({ fragment: [19, 14], altar: [12, 15] });
+  m.dig(6, 14, 'gem'); // 섬의 보석은 땅속에 — 너구리와 함께
+  m.dig(10, 22, 'wooden-fish');
+  for (const [x, y] of [[10, 16], [14, 16]]) m.single(CRYSTALS, x, y, false, true);
+
+  const keepClear = (x, y) => x >= 12 && x <= 16 && y <= 8;
+  m.scatter(BUSHES, 8, true, keepClear);
+  m.scatter([270, 266, 264, 267], 30, false, keepClear);
+
+  m.paintGround();
+  return m;
+}
+
 mkdirSync('public/maps', { recursive: true });
-for (const map of [meadowA(), forestB(), hillC(), ruinsD(), beachE()]) {
+for (const map of [meadowA(), forestB(), hillC(), ruinsD(), beachE(), villageF(), islandG()]) {
   writeFileSync(`public/maps/${map.name}.json`, JSON.stringify(map.toTiled()));
   console.log(`public/maps/${map.name}.json (${map.width}×${map.height})`);
 }

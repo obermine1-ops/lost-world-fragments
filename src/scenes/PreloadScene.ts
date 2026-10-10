@@ -32,6 +32,8 @@ export class PreloadScene extends Phaser.Scene {
 
     this.load.spritesheet('hero', 'assets/actors/hero.png', tile);
     this.load.spritesheet('pet', 'assets/actors/pet.png', tile);
+    this.load.spritesheet('frog', 'assets/actors/frog.png', tile);
+    this.load.spritesheet('water-sheet', 'assets/tilesets/TilesetWater.png', tile);
     this.load.image('face-pet', 'assets/actors/pet-face.png');
     for (const item of RARE_ITEMS) this.load.image(`item-${item.id}`, `assets/items/${item.id}.png`);
     for (const key of SFX) this.load.audio(`sfx-${key}`, `assets/audio/sfx-${key}.wav`);
@@ -42,7 +44,8 @@ export class PreloadScene extends Phaser.Scene {
   create() {
     this.createActorAnims('hero');
     // 동물 그림은 옆모습 2프레임 (오른쪽을 보고 있음 — 왼쪽으로 갈 때는 뒤집는다)
-    this.anims.create({ key: 'pet-walk', frames: this.anims.generateFrameNumbers('pet', { frames: [0, 1] }), frameRate: 6, repeat: -1 });
+    for (const key of ['pet', 'frog'])
+      this.anims.create({ key: `${key}-walk`, frames: this.anims.generateFrameNumbers(key, { frames: [0, 1] }), frameRate: 6, repeat: -1 });
     this.scene.launch('Audio'); // 배경 음악은 뒤에서 불러온다
     this.scene.start('Title');
   }

@@ -1,19 +1,30 @@
 import Phaser from 'phaser';
 
-const FOLLOW_GAP = 18; // 플레이어와 이 정도 떨어지면 따라 걷는다
+const FOLLOW_GAP = 18; // 앞사람과 이 정도 떨어지면 따라 걷는다
 const SPEED = 70;
 
-// 너구리 동료. 플레이어 뒤를 졸졸 따라다니고, 흙더미가 있으면 달려가 파낸다.
+export type PetKind = 'raccoon' | 'frog';
+
+// 동물 그림 키 (public/assets/actors/)
+export const PET_TEXTURE: Record<PetKind, string> = { raccoon: 'pet', frog: 'frog' };
+
+// 동료 동물. 앞사람(플레이어나 다른 동물)의 뒤를 졸졸 따라다니고,
+// 심부름(흙더미·물가로 달려가기)을 시키면 그곳으로 간다.
 // 장애물과 부딪히지 않는다(작은 동물이라 덤불 사이로 빠져나간다는 설정).
 export class Pet {
   readonly sprite: Phaser.GameObjects.Sprite;
   private errand?: { x: number; y: number; onArrive: () => void };
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
-    this.sprite = scene.add.sprite(x, y, 'pet', 0);
+  constructor(
+    scene: Phaser.Scene,
+    readonly kind: PetKind,
+    x: number,
+    y: number,
+  ) {
+    this.sprite = scene.add.sprite(x, y, PET_TEXTURE[kind], 0);
   }
 
-  // 심부름(흙더미로 달려가기) 중에는 따라오지 않는다.
+  // 심부름 중에는 따라오지 않는다.
   runTo(x: number, y: number, onArrive: () => void) {
     this.errand = { x, y, onArrive };
   }
@@ -43,6 +54,6 @@ export class Pet {
     s.x += (dx / dist) * step;
     s.y += (dy / dist) * step;
     if (Math.abs(dx) > 1) s.setFlipX(dx < 0);
-    s.anims.play('pet-walk', true);
+    s.anims.play(`${PET_TEXTURE[this.kind]}-walk`, true);
   }
 }

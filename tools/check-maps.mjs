@@ -21,7 +21,12 @@ for (const name of MAPS) {
   const reachable = (closed) => {
     const blocked = collide.map((g) => g !== 0);
     for (const b of barriers) {
-      if (!closed.includes(prop(b, 'id'))) continue;
+      if (!closed.includes(prop(b, 'id'))) {
+        // 연잎 다리가 놓이면 그 아래 바다를 건널 수 있다.
+        if (prop(b, 'look') === 'lilypad')
+          for (let y = b.y / T; y < (b.y + b.height) / T; y++) for (let x = b.x / T; x < (b.x + b.width) / T; x++) blocked[y * W + x] = false;
+        continue;
+      }
       for (let y = b.y / T; y < (b.y + b.height) / T; y++) for (let x = b.x / T; x < (b.x + b.width) / T; x++) blocked[y * W + x] = true;
     }
     const starts = objects.filter((o) => o.name === 'start' || o.name.startsWith('from-')).map(tileOf);
@@ -58,12 +63,16 @@ for (const name of MAPS) {
   // 열 수 있는 것을 하나씩 열어 본다 (흙더미로 여는 돌무더기 → 열쇠로 여는 문)
   for (let round = 0; round < 5; round++) {
     const can = reachable(closed);
-    const items = objects.filter((o) => o.name === 'dig' && can(o)).map((o) => prop(o, 'reward'));
+    const items = [
+      ...objects.filter((o) => o.name === 'dig' && can(o)).map((o) => prop(o, 'reward')),
+      ...objects.filter((o) => o.name === 'pet' && can(o)).map((o) => `pet:${prop(o, 'kind')}`),
+    ];
     closed = closed.filter((id) => {
       const b = barriers.find((x) => prop(x, 'id') === id);
       const unlock = prop(b, 'unlock');
       if (unlock === 'dig') return !items.includes(`open:${id}`);
       if (unlock.startsWith('key:')) return !items.includes(unlock.slice(4));
+      if (unlock.startsWith('pet:')) return !items.includes(unlock);
       return true;
     });
   }
