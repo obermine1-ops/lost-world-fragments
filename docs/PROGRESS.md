@@ -1,6 +1,6 @@
 # 진행 상태
-- 현재 단계: Sprint 6 시작 (Sprint 5 완료 — 콘텐츠 완성, 폰 확인·지인 중간 테스트 대기). 자동 진행 모드
-- 다음 할 일: Sprint 6(다듬기) — 처음 안내, 사운드, PWA, 너구리 교감, 그림 교체. 사용자: docs/sprint-3/PLAYTEST-GUIDE.md로 지인 1명 테스트
+- 현재 단계: Sprint 7 — 지인 플레이테스트 대기 (Sprint 1~6 완료, v1 기능 전부 구현). 자동 진행 모드였으나 사람 테스트가 필요해 일시 정지
+- 다음 할 일: 사용자가 docs/sprint-7/PLAYTEST.md로 지인 3명 테스트 → 결과를 Claude에게 전달 → 수정 → 성공 지표 기록 사용자: docs/sprint-3/PLAYTEST-GUIDE.md로 지인 1명 테스트
 - 지도 수정: `tools/build-maps.mjs` 고친 뒤 `npm run maps` (생성 + 진행 불가 검사, 결과 JSON도 커밋)
 - 에셋: 원본은 `_asset-src/ninja-adventure/`(git 제외, zip은 프로젝트 폴더), 게임에 쓰는 것만 `public/assets/`
 - 개발 팁: 개발 서버에서는 브라우저 콘솔의 `window.game`으로 장면 상태를 조작해 테스트할 수 있다(배포본엔 없음). Sprint 1 끝나면 스프린트 종료 대화(회고 → docs/sprint-1/REVIEW.md)
