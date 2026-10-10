@@ -5,6 +5,7 @@ import type { PuzzleData } from './PuzzleScene';
 import { ActorAnimator } from '../actor';
 import { NavGrid, type Point } from '../pathfinding';
 import { game } from '../state';
+import { saveGame } from '../save';
 
 // 타일 16px 그림을 2배로 확대해 보여준다. (폰 화면에 가로 약 11칸 × 세로 20칸)
 const ZOOM = 2;
@@ -16,6 +17,7 @@ const TOTAL_FRAGMENTS = 1;
 // 발밑 충돌 상자의 절반 크기 (가로 10 × 세로 6)
 const FEET_HALF_W = 5;
 const FEET_HALF_H = 3;
+const SAVE_EVERY_MS = 3000;
 
 // 그리는 순서 (숫자가 클수록 위)
 const DEPTH = { ground: 0, decor: 1, marker: 5, actor: 10, above: 20 };
@@ -45,6 +47,7 @@ export class GameScene extends Phaser.Scene {
   private hudText!: Phaser.GameObjects.Text;
   private color!: WorldColor;
   private leaving = false;
+  private lastSaveAt = 0;
 
   constructor() {
     super('Game');
@@ -134,8 +137,17 @@ export class GameScene extends Phaser.Scene {
     // 개발용 UI(FPS, 테스트 버튼)는 개발 서버에서만 보이고 배포본에는 없다.
     if (import.meta.env.DEV) this.createDevUi(width, height);
 
+    // 지역에 들어오면 저장. 걷는 동안에도 가끔, 앱을 내리거나 끌 때도 위치를 저장한다.
+    this.savePosition();
+    this.lastSaveAt = this.time.now;
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') this.savePosition();
+    };
+    document.addEventListener('visibilitychange', onHide);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => document.removeEventListener('visibilitychange', onHide));
+
     fadeIn(this);
-    const title = (map.properties as { name: string; value: string }[]).find((p) => p.name === 'title')?.value;
+    const title =(map.properties as { name: string; value: string }[]).find((p) => p.name === 'title')?.value;
     if (title) this.time.delayedCall(300, () => this.showMessage(title));
 
     // 버튼 위를 누른 경우는 이동으로 치지 않는다.
@@ -151,6 +163,10 @@ export class GameScene extends Phaser.Scene {
     const velocity = (this.player.body as Phaser.Physics.Arcade.Body).velocity;
     this.playerAnim.update(velocity.x, velocity.y);
     sortByY(this.player);
+    if (this.time.now - this.lastSaveAt > SAVE_EVERY_MS) {
+      this.lastSaveAt = this.time.now;
+      this.savePosition();
+    }
 
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     const waypoint = this.path[0];
@@ -181,6 +197,13 @@ export class GameScene extends Phaser.Scene {
     this.path = this.nav.findPath(body.center, { x, y }, FEET_HALF_W, FEET_HALF_H);
     this.resetProgress();
     this.showTapMarker(x, y);
+  }
+
+  private savePosition() {
+    if (this.leaving) return;
+    game.state.x = Math.round(this.player.x);
+    game.state.y = Math.round(this.player.y);
+    saveGame(game.state);
   }
 
   private resetProgress() {
@@ -222,6 +245,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     game.state.fragments.push(id);
+    this.savePosition();
     this.updateHud();
     this.showMessage('기억의 조각을 찾았다');
     this.time.delayedCall(1600, () => this.openPuzzle());
@@ -230,6 +254,7 @@ export class GameScene extends Phaser.Scene {
   // 퍼즐로 기억을 되찾으면 들판에 색이 돌아오고, 잠시 머문 뒤 끝 화면으로 간다.
   private restoreWorld() {
     game.state.restored = true;
+    this.savePosition();
     this.color.restore(() => {
       this.showMessage('들판에 색이 돌아왔다');
       this.time.delayedCall(3000, () => fadeTo(this, 'End'));
