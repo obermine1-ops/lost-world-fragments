@@ -90,6 +90,8 @@ export class GameScene extends Phaser.Scene {
   private altar?: Phaser.GameObjects.Image;
   private barriers: Barrier[] = [];
   private spots: Spot[] = [];
+  // 지도 위 물체 목록 (자동 플레이 테스트가 읽는다)
+  mapObjects: Phaser.Types.Tilemaps.TiledObject[] = [];
   private pets: Pet[] = []; // 동료 동물 (너구리 → 개구리 순으로 줄지어 따라온다)
   private collideLayer!: Phaser.Tilemaps.TilemapLayer;
 
@@ -138,6 +140,7 @@ export class GameScene extends Phaser.Scene {
     this.nav = new NavGrid(map.width, map.height, map.tileWidth, blocked);
 
     const objects = map.getObjectLayer('objects')?.objects ?? [];
+    this.mapObjects = objects;
     const spot = (name: string) => {
       const o = objects.find((obj) => obj.name === name);
       return o ? { x: o.x!, y: o.y! } : undefined;
@@ -220,7 +223,7 @@ export class GameScene extends Phaser.Scene {
     sortByY(this.player);
     // 첫 동물은 플레이어를, 다음 동물은 앞 동물을 따라간다.
     this.pets.forEach((pet, i) => {
-      pet.update(delta, i === 0 ? body.center : this.pets[i - 1].sprite);
+      pet.update(delta * this.time.timeScale, i === 0 ? body.center : this.pets[i - 1].sprite);
       sortByY(pet.sprite);
     });
     if (this.time.now - this.lastSaveAt > SAVE_EVERY_MS) {

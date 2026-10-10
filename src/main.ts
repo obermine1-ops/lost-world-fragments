@@ -36,6 +36,8 @@ const game = new Phaser.Game({
 // 개발 중에만 브라우저 콘솔에서 게임 상태를 들여다볼 수 있게 한다. (배포본에는 없음)
 if (import.meta.env.DEV) {
   Object.assign(window, { game, progress });
+  // 자동 플레이 테스트: 콘솔에서 await autoplay.run({ speed: 3 })
+  void import('./dev/autoplay').then((m) => m.installAutoplay(game));
 } else if ('serviceWorker' in navigator) {
   // 배포본에서만: 홈 화면 설치·오프라인 실행용 (public/sw.js)
   navigator.serviceWorker.register('./sw.js').catch(() => {});

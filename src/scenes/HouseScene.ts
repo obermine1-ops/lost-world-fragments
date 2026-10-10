@@ -4,6 +4,7 @@ import { game } from '../state';
 import { saveGame } from '../save';
 import { ownedPlaceables, type Placeable } from '../furniture';
 import { music, sfx } from '../sound';
+import { WorldColor } from '../worldColor';
 
 // 방: 바깥 벽을 포함해 11×9칸, 안쪽 바닥 9×7칸. 16px 그림을 2배로 그린다.
 const ROOM_W = 11;
@@ -37,6 +38,8 @@ export class HouseScene extends Phaser.Scene {
     fadeIn(this);
     music(this.game, 'quiet');
     this.cameras.main.setBackgroundColor('#1b1724');
+    // 집도 봄 들판의 일부: 들판의 색을 되찾기 전에는 집 안도 흑백이다.
+    new WorldColor(this, this.cameras.main, game.state.restored.includes('meadow-a'));
 
     this.add.text(width / 2, 22, '나의 집', { fontFamily: FONT, fontSize: '20px', color: '#ffffff' }).setOrigin(0.5);
     this.hint = this.add
