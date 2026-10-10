@@ -4,6 +4,7 @@ import { WorldColor } from '../worldColor';
 import type { PuzzleData } from './PuzzleScene';
 import { ActorAnimator } from '../actor';
 import { NavGrid, type Point } from '../pathfinding';
+import { game } from '../state';
 
 // 타일 16px 그림을 2배로 확대해 보여준다. (폰 화면에 가로 약 11칸 × 세로 20칸)
 const ZOOM = 2;
@@ -18,6 +19,11 @@ const FEET_HALF_H = 3;
 
 // 그리는 순서 (숫자가 클수록 위)
 const DEPTH = { ground: 0, decor: 1, marker: 5, actor: 10, above: 20 };
+
+// 지도 물체에 붙은 사용자 정의 값 (예: 길목의 도착 지도 이름)
+function prop(obj: Phaser.Types.Tilemaps.TiledObject, name: string): string | undefined {
+  return (obj.properties as { name: string; value: string }[] | undefined)?.find((p) => p.name === name)?.value;
+}
 
 // 캐릭터·물건끼리는 화면 아래쪽(y가 큰 쪽)에 있는 것이 앞에 보이게 한다.
 function sortByY(obj: Phaser.GameObjects.Components.Depth & { y: number }) {
@@ -38,20 +44,22 @@ export class GameScene extends Phaser.Scene {
   private fpsText?: Phaser.GameObjects.Text;
   private hudText!: Phaser.GameObjects.Text;
   private color!: WorldColor;
-  private fragmentsFound = 0;
+  private leaving = false;
 
   constructor() {
     super('Game');
   }
 
-  create() {
+  // spawn: 다른 지역에서 넘어왔을 때 나타날 지점 이름
+  create(data: { spawn?: string } = {}) {
     const { width, height } = this.scale;
+    const state = game.state;
     this.path = [];
-    this.fragmentsFound = 0;
+    this.leaving = false;
     this.world = this.add.layer();
     this.ui = this.add.layer();
 
-    const map = this.make.tilemap({ key: 'meadow-a' });
+    const map = this.make.tilemap({ key: state.map });
     const tilesets = [
       map.addTilesetImage('TilesetFloor', 'tiles-floor')!,
       map.addTilesetImage('TilesetWater', 'tiles-water')!,
@@ -72,12 +80,16 @@ export class GameScene extends Phaser.Scene {
       for (let x = 0; x < map.width; x++) blocked.push(collide.getTileAt(x, y) !== null);
     this.nav = new NavGrid(map.width, map.height, map.tileWidth, blocked);
 
+    const objects = map.getObjectLayer('objects')?.objects ?? [];
     const spot = (name: string) => {
-      const o = map.findObject('objects', (obj) => obj.name === name);
-      return { x: o?.x ?? map.widthInPixels / 2, y: o?.y ?? map.heightInPixels / 2 };
+      const o = objects.find((obj) => obj.name === name);
+      return o ? { x: o.x!, y: o.y! } : undefined;
     };
 
-    const start = spot('start');
+    // 어디에 나타날지: 다른 지역에서 넘어옴 → 그 길목 / 이어하기 → 마지막 위치 / 처음 → 시작 지점
+    const start = (data.spawn && spot(data.spawn)) ||
+      (state.x !== undefined && state.y !== undefined ? { x: state.x, y: state.y } : undefined) ||
+      spot('start') || { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
     this.player = this.add.sprite(start.x, start.y, 'hero', 0);
     this.world.add(this.player);
     this.playerAnim = new ActorAnimator(this.player, 'hero');
@@ -88,19 +100,31 @@ export class GameScene extends Phaser.Scene {
     // 장애물에 비스듬히 닿으면 미끄러지듯 비켜 가고, 정면으로 막히면 update에서 멈춘다.
     this.physics.add.collider(this.player, collide);
 
-    const f = spot('fragment');
-    const fragment = this.createFragment(f.x, f.y);
-    const pickup = this.physics.add.overlap(this.player, fragment, () => {
-      pickup.destroy();
-      this.collectFragment(fragment);
-    });
+    for (const o of objects.filter((obj) => obj.name === 'fragment')) {
+      const id = prop(o, 'id');
+      if (!id || state.fragments.includes(id)) continue;
+      const fragment = this.createFragment(o.x!, o.y!);
+      const pickup = this.physics.add.overlap(this.player, fragment, () => {
+        pickup.destroy();
+        this.collectFragment(fragment, id);
+      });
+    }
+
+    // 지역 길목: 들어서면 화면이 어두워졌다가 다음 지역의 길목에서 나타난다.
+    for (const o of objects.filter((obj) => obj.name === 'exit')) {
+      const zone = this.add.zone(o.x!, o.y!, o.width!, o.height!).setOrigin(0);
+      this.world.add(zone);
+      this.physics.add.existing(zone, true);
+      this.physics.add.overlap(this.player, zone, () => this.leaveTo(prop(o, 'to')!, prop(o, 'spawn')!));
+    }
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     const cam = this.cameras.main;
     cam.setZoom(ZOOM).setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     cam.startFollow(this.player, true, 0.12, 0.12);
+    cam.centerOn(this.player.x, this.player.y);
     cam.ignore(this.ui);
-    this.color = new WorldColor(this, cam);
+    this.color = new WorldColor(this, cam, state.restored);
 
     const uiCam = this.cameras.add(0, 0, width, height);
     uiCam.ignore(this.world);
@@ -111,6 +135,8 @@ export class GameScene extends Phaser.Scene {
     if (import.meta.env.DEV) this.createDevUi(width, height);
 
     fadeIn(this);
+    const title = (map.properties as { name: string; value: string }[]).find((p) => p.name === 'title')?.value;
+    if (title) this.time.delayedCall(300, () => this.showMessage(title));
 
     // 버튼 위를 누른 경우는 이동으로 치지 않는다.
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
@@ -184,7 +210,7 @@ export class GameScene extends Phaser.Scene {
     return fragment;
   }
 
-  private collectFragment(fragment: Phaser.GameObjects.Container) {
+  private collectFragment(fragment: Phaser.GameObjects.Container, id: string) {
     this.tweens.killTweensOf(fragment.list);
     this.tweens.add({
       targets: fragment,
@@ -195,7 +221,7 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => fragment.destroy(),
     });
 
-    this.fragmentsFound += 1;
+    game.state.fragments.push(id);
     this.updateHud();
     this.showMessage('기억의 조각을 찾았다');
     this.time.delayedCall(1600, () => this.openPuzzle());
@@ -203,6 +229,7 @@ export class GameScene extends Phaser.Scene {
 
   // 퍼즐로 기억을 되찾으면 들판에 색이 돌아오고, 잠시 머문 뒤 끝 화면으로 간다.
   private restoreWorld() {
+    game.state.restored = true;
     this.color.restore(() => {
       this.showMessage('들판에 색이 돌아왔다');
       this.time.delayedCall(3000, () => fadeTo(this, 'End'));
@@ -222,7 +249,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHud() {
-    this.hudText.setText(`◆ 기억의 조각 ${this.fragmentsFound}/${TOTAL_FRAGMENTS}`);
+    this.hudText.setText(`◆ 기억의 조각 ${game.state.fragments.length}/${TOTAL_FRAGMENTS}`);
+  }
+
+  // 다른 지역으로 넘어간다. 퍼즐·연출 중에는 넘어가지 않는다.
+  private leaveTo(map: string, spawn: string) {
+    if (this.leaving || !this.scene.isActive()) return;
+    this.leaving = true;
+    this.stopMoving();
+    game.state.map = map;
+    game.state.x = game.state.y = undefined;
+    fadeTo(this, 'Game', { spawn });
   }
 
   // 화면 가운데에 잠깐 떠올랐다 사라지는 안내 문구

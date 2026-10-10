@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { FONT } from '../ui';
 import { DIRECTIONS } from '../actor';
+import { MAPS } from '../state';
 
 // 게임에 필요한 그림·지도를 처음에 한 번 불러온다.
 export class PreloadScene extends Phaser.Scene {
@@ -18,7 +19,7 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('tiles-floor', 'assets/tilesets/TilesetFloor.png');
     this.load.image('tiles-water', 'assets/tilesets/TilesetWater.png');
     this.load.image('tiles-nature', 'assets/tilesets/TilesetNature.png');
-    this.load.tilemapTiledJSON('meadow-a', 'maps/meadow-a.json');
+    for (const key of MAPS) this.load.tilemapTiledJSON(key, `maps/${key}.json`);
     this.load.spritesheet('hero', 'assets/actors/hero.png', { frameWidth: 16, frameHeight: 16 });
   }
 

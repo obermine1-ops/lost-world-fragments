@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FONT, addButton, fadeIn, fadeTo } from '../ui';
+import { game, newGame } from '../state';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -28,6 +29,9 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    addButton(this, width / 2, height * 0.72, '시작', () => fadeTo(this, 'Game'));
+    addButton(this, width / 2, height * 0.72, '시작', () => {
+      game.state = newGame();
+      fadeTo(this, 'Game');
+    });
   }
 }

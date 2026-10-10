@@ -11,8 +11,9 @@ export class WorldColor {
   // 0 = 완전한 컬러, 1 = 완전한 흑백
   private grayness = 1;
 
-  constructor(scene: Phaser.Scene, camera: Phaser.Cameras.Scene2D.Camera) {
+  constructor(scene: Phaser.Scene, camera: Phaser.Cameras.Scene2D.Camera, restored = false) {
     this.scene = scene;
+    this.grayness = restored ? 0 : 1;
     this.matrix = camera.postFX?.addColorMatrix();
     this.apply();
   }
