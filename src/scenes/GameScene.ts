@@ -421,7 +421,7 @@ export class GameScene extends Phaser.Scene {
       this.stopMoving();
       frog.runTo(o.x! + o.width! / 2, o.y! - 4, () => {
         this.tweens.add({ targets: frog.sprite, y: frog.sprite.y - 6, duration: 160, yoyo: true, repeat: 2 });
-        sfx(this, 'secret', 0.5);
+        sfx(this, 'splash', 0.7);
         build(true);
         game.state.opened.push(id);
         this.savePosition();
@@ -843,7 +843,9 @@ export class GameScene extends Phaser.Scene {
   private playRegionMusic() {
     const r = this.region;
     if (!r) return;
-    if (game.state.restored.includes(r.key)) music(this.game, 'spring');
+    const restored = game.state.restored.includes(r.key);
+    if (r.season === 'summer') music(this.game, restored ? 'summer' : 'sea');
+    else if (restored) music(this.game, 'spring');
     else music(this.game, r.key === 'ruins-d' ? 'ruins' : 'gray');
   }
 
