@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "maps": "node tools/build-maps.mjs"
+    "maps": "node tools/build-maps.mjs && node tools/check-maps.mjs",
+    "check-maps": "node tools/check-maps.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0"

@@ -25,6 +25,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run check-maps # 지도에서 닿을 수 없는 물건이 있으면 배포하지 않는다
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

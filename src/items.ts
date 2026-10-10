@@ -11,6 +11,7 @@ export const RARE_ITEMS: RareItem[] = [
   { id: 'hourglass', name: '멈춘 모래시계', desc: '모래가 흐르지 않는다. 시간이 멈춘 것처럼.' },
   { id: 'picture-book', name: '그림책', desc: '엄마가 읽어 주던 봄 이야기. 마지막 장이 비어 있다.' },
   { id: 'flower-seed', name: '꽃씨 주머니', desc: '언덕에 뿌리면 내년에도 꽃이 필 것 같다.' },
+  { id: 'silver-key', name: '은빛 열쇠', desc: '유적 깊은 곳의 문을 여는 열쇠. 손에 쥐면 따뜻하다.' },
 ];
 
 // 받침에 맞는 조사 고르기: withJosa('피리', '을', '를') → '피리를'

@@ -33,6 +33,8 @@ const DEAD_TREE = [4, 5, 28, 29]; // 시든 나무 2×2 (TilesetNature)
 const ALTAR_EMPTY = 38; // 빈 홈이 있는 받침돌 (TilesetDungeon)
 const ALTAR_FILLED = 27; // 구슬이 올라간 받침돌 — 보석 색으로 물들인다
 const DIRT_MOUND = 448; // 흙더미 (TilesetNature)
+const RUBBLE = [86, 87, 88, 89, 90]; // 돌무더기 (TilesetVillageAbandoned)
+const LOCKED_DOOR = 0; // 열쇠 구멍이 있는 문 (TilesetDungeon)
 
 // 지도 물체에 붙은 사용자 정의 값 (예: 길목의 도착 지도 이름)
 function prop(obj: Phaser.Types.Tilemaps.TiledObject, name: string): string | undefined {
@@ -54,8 +56,9 @@ interface Spot {
 }
 
 interface Barrier {
-  region: string;
-  trees: Phaser.GameObjects.Image[];
+  id: string;
+  unlock: string;
+  sprites: Phaser.GameObjects.Image[];
   zone: Phaser.GameObjects.Zone;
   tiles: Point[];
 }
@@ -110,6 +113,7 @@ export class GameScene extends Phaser.Scene {
       map.addTilesetImage('TilesetFloor', 'tiles-floor')!,
       map.addTilesetImage('TilesetWater', 'tiles-water')!,
       map.addTilesetImage('TilesetNature', 'tiles-nature')!,
+      map.addTilesetImage('TilesetVillageAbandoned', 'tiles-ruins')!,
     ];
     const layer = (name: string, depth: number) => {
       const l = map.createLayer(name, tilesets)!.setDepth(depth);
@@ -182,7 +186,9 @@ export class GameScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => document.removeEventListener('visibilitychange', onHide));
 
     fadeIn(this);
-    const title = (map.properties as { name: string; value: string }[]).find((p) => p.name === 'title')?.value;
+    const mapProps = map.properties as { name: string; value: string | boolean }[];
+    const title = mapProps.find((p) => p.name === 'title')?.value as string | undefined;
+    if (mapProps.find((p) => p.name === 'dark')?.value) this.addDarkness(width, height);
     if (title) this.time.delayedCall(300, () => this.showMessage(title));
 
     // 버튼 위를 누른 경우는 이동으로 치지 않는다.
@@ -256,10 +262,7 @@ export class GameScene extends Phaser.Scene {
       }
       if (o.name === 'pet' && !state.pet) this.placeWaitingPet(o.x!, o.y!);
       if (o.name === 'dig' && id && !state.dug.includes(id)) this.placeMound(o.x!, o.y!, id, prop(o, 'reward')!);
-      if (o.name === 'barrier') {
-        const blockedBy = prop(o, 'region')!;
-        if (!state.restored.includes(blockedBy)) this.createBarrier(o, blockedBy);
-      }
+      if (o.name === 'barrier') this.placeBarrier(o);
       // 지역 길목: 들어서면 화면이 어두워졌다가 다음 지역의 길목에서 나타난다.
       if (o.name === 'exit') {
         const zone = this.add.zone(o.x!, o.y!, o.width!, o.height!).setOrigin(0);
@@ -306,47 +309,77 @@ export class GameScene extends Phaser.Scene {
     return gem;
   }
 
-  // 시든 나무 줄: 지나갈 수 없고, 막고 있는 지역이 복원되면 사라진다.
-  private createBarrier(o: Phaser.Types.Tilemaps.TiledObject, region: string) {
-    const trees: Phaser.GameObjects.Image[] = [];
+  // 길을 막는 것: 시든 나무(지역 복원 시) / 돌무더기(너구리가 파면) / 잠긴 문(열쇠가 있으면)
+  private placeBarrier(o: Phaser.Types.Tilemaps.TiledObject) {
+    const state = game.state;
+    const id = prop(o, 'id')!;
+    const unlock = prop(o, 'unlock')!;
+    const look = prop(o, 'look')!;
+    if (unlock.startsWith('restore:') ? state.restored.includes(unlock.slice(8)) : state.opened.includes(id)) return;
+
+    const sprites: Phaser.GameObjects.Image[] = [];
     const tiles: Point[] = [];
     const tx0 = Math.floor(o.x! / 16);
     const ty0 = Math.floor(o.y! / 16);
     const tw = Math.round(o.width! / 16);
     const th = Math.round(o.height! / 16);
-    for (let tx = tx0; tx < tx0 + tw; tx += 2)
-      for (let ty = ty0; ty < ty0 + th; ty += 2)
-        DEAD_TREE.forEach((frame, i) => {
-          const img = this.add.image((tx + (i % 2)) * 16 + 8, (ty + Math.floor(i / 2)) * 16 + 8, 'nature-sheet', frame);
-          img.setDepth(i < 2 ? DEPTH.above : DEPTH.decor + 0.5);
-          this.world.add(img);
-          trees.push(img);
-        });
-    for (let tx = tx0; tx < tx0 + tw; tx++)
-      for (let ty = ty0; ty < ty0 + th; ty++) {
+    const put = (tx: number, ty: number, sheet: string, frame: number, depth: number) => {
+      const img = this.add.image(tx * 16 + 8, ty * 16 + 8, sheet, frame).setDepth(depth);
+      this.world.add(img);
+      sprites.push(img);
+    };
+    for (let ty = ty0; ty < ty0 + th; ty++)
+      for (let tx = tx0; tx < tx0 + tw; tx++) {
         tiles.push({ x: tx, y: ty });
         this.nav.setBlocked(tx, ty, true);
+        if (look === 'rubble') put(tx, ty, 'ruins-sheet', RUBBLE[(tx * 7 + ty * 3) % RUBBLE.length], DEPTH.decor + 0.5);
+        if (look === 'door') put(tx, ty, 'dungeon-sheet', LOCKED_DOOR, DEPTH.decor + 0.5);
+        // 시든 나무는 2×2 그림이라 두 칸마다 하나
+        if (look === 'dead-tree' && (tx - tx0) % 2 === 0 && (ty - ty0) % 2 === 0)
+          DEAD_TREE.forEach((frame, i) => put(tx + (i % 2), ty + Math.floor(i / 2), 'nature-sheet', frame, i < 2 ? DEPTH.above : DEPTH.decor + 0.5));
       }
     const zone = this.add.zone(o.x!, o.y!, o.width!, o.height!).setOrigin(0);
     this.world.add(zone);
     this.physics.add.existing(zone, true);
     this.physics.add.collider(this.player, zone);
-    this.barriers.push({ region, trees, zone, tiles });
+    const barrier: Barrier = { id, unlock, sprites, zone, tiles };
+    this.barriers.push(barrier);
+
+    // 잠긴 문: 다가가면 열쇠가 있는지 확인한다.
+    if (unlock.startsWith('key:')) {
+      const key = unlock.slice(4);
+      const spot = this.addSpot(o.x! + o.width! / 2, o.y! + o.height! / 2, ALTAR_REACH + 4, () => {
+        if (!state.items.includes(key)) {
+          this.showMessage('단단히 잠겨 있다…\n어딘가에 열쇠가 있을 것 같다');
+          return;
+        }
+        this.spots = this.spots.filter((s) => s !== spot);
+        this.openBarrier(id);
+        this.showMessage(`${withJosa(itemOf(key)?.name ?? key, '으로', '로')} 문을 열었다`);
+      });
+    }
   }
 
-  private removeBarriers(region: string) {
-    for (const b of this.barriers.filter((x) => x.region === region)) {
+  // 막힌 길을 연다 (기록해 두어 다시 막히지 않는다)
+  private openBarrier(id: string) {
+    if (!game.state.opened.includes(id)) game.state.opened.push(id);
+    this.removeBarriers((b) => b.id === id);
+    this.savePosition();
+  }
+
+  private removeBarriers(match: (b: Barrier) => boolean) {
+    for (const b of this.barriers.filter(match)) {
       this.tweens.add({
-        targets: b.trees,
+        targets: b.sprites,
         alpha: 0,
         scaleY: 0.2,
         duration: 900,
-        onComplete: () => b.trees.forEach((t) => t.destroy()),
+        onComplete: () => b.sprites.forEach((t) => t.destroy()),
       });
       b.zone.destroy();
       for (const t of b.tiles) this.nav.setBlocked(t.x, t.y, false);
     }
-    this.barriers = this.barriers.filter((x) => x.region !== region);
+    this.barriers = this.barriers.filter((b) => !match(b));
   }
 
   // ── 줍기 ─────────────────────────────────────────────────
@@ -475,6 +508,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private revealReward(x: number, y: number, reward: string) {
+    // 막힌 길을 파서 연다 (돌무더기)
+    if (reward.startsWith('open:')) {
+      this.openBarrier(reward.slice(5));
+      this.showMessage('너구리가 무너진 돌 틈을 파서\n길을 냈다!');
+      return;
+    }
     const region = this.region;
     const isGem = reward === 'gem' && region;
     const texture = isGem ? `gem-${region.gem}` : `item-${reward}`;
@@ -573,7 +612,7 @@ export class GameScene extends Phaser.Scene {
     this.savePosition();
     this.updateHud();
     this.color.restore(() => {
-      this.removeBarriers(region.key);
+      this.removeBarriers((b) => b.unlock === `restore:${region.key}`);
       const done = REGIONS.every((r) => game.state.restored.includes(r.key));
       this.showMessage(done ? '봄이 모두 돌아왔다' : '색이 돌아왔다!\n막혀 있던 길이 열린 것 같다');
       if (!done) {
@@ -728,6 +767,23 @@ export class GameScene extends Phaser.Scene {
     const region = this.region ?? REGIONS[0];
     this.ui.add(addButton(this, width - 70, 112, '퍼즐 (테스트)', () => this.openPuzzle(region, false), 120, 36));
     this.ui.add(addButton(this, width - 70, 154, '끝내기 (테스트)', () => fadeTo(this, 'End'), 120, 36));
+  }
+
+  // 어두운 곳(유적): 화면 가장자리가 어둡고 가운데(캐릭터 주변)만 밝다.
+  private addDarkness(width: number, height: number) {
+    if (!this.textures.exists('darkness')) {
+      const canvas = this.textures.createCanvas('darkness', width, height)!;
+      const ctx = canvas.getContext();
+      const g = ctx.createRadialGradient(width / 2, height / 2, 60, width / 2, height / 2, height * 0.55);
+      g.addColorStop(0, 'rgba(8,6,16,0)');
+      g.addColorStop(0.55, 'rgba(8,6,16,0.45)');
+      g.addColorStop(1, 'rgba(8,6,16,0.9)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, width, height);
+      canvas.refresh();
+    }
+    const dark = this.add.image(0, 0, 'darkness').setOrigin(0);
+    this.ui.addAt(dark, 0); // HUD·문구보다 아래
   }
 
   private showWebGlWarning(width: number) {

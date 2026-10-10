@@ -38,9 +38,10 @@ export class MemoryScene extends Phaser.Scene {
       y = height * 0.32;
     }
 
-    const texts = data.lines.map((line, i) =>
-      this.add
-        .text(width / 2, y + i * 56, line, {
+    // 긴 문장은 두 줄로 넘어가므로, 앞 문장의 실제 높이만큼 내려서 다음 문장을 놓는다.
+    const texts = data.lines.map((line) => {
+      const t = this.add
+        .text(width / 2, y, line, {
           fontFamily: FONT,
           fontSize: '17px',
           color: '#ffffff',
@@ -49,8 +50,10 @@ export class MemoryScene extends Phaser.Scene {
           lineSpacing: 4,
         })
         .setOrigin(0.5, 0)
-        .setAlpha(0),
-    );
+        .setAlpha(0);
+      y += t.height + 16;
+      return t;
+    });
     texts.forEach((t, i) => this.tweens.add({ targets: t, alpha: 1, duration: 600, delay: 400 + i * (LINE_MS + 600) }));
 
     const hint = this.add

@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { FONT, addButton, fadeIn, fadeTo } from '../ui';
 import { game, newGame } from '../state';
 import { clearSave, loadGame } from '../save';
+import { INTRO_LINES } from '../regions';
+import type { MemoryData } from './MemoryScene';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -44,10 +46,18 @@ export class TitleScene extends Phaser.Scene {
     addButton(this, width / 2, height * 0.82, '새로 시작', () => this.confirmNew(), 130, 40);
   }
 
+  // 새 게임: 도입 글(세상이 흑백이 된 이야기)을 보여 준 뒤 들판으로
   private startNew() {
     clearSave();
     game.state = newGame();
-    fadeTo(this, 'Game');
+    const manager = this.game.scene;
+    fadeTo(this, 'Memory', {
+      lines: INTRO_LINES,
+      onComplete: () => {
+        manager.stop('Memory');
+        manager.start('Game');
+      },
+    } satisfies MemoryData);
   }
 
   private confirmNew() {

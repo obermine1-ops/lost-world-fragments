@@ -10,6 +10,7 @@ const TILESETS = [
   { key: 'floor', name: 'TilesetFloor', file: 'TilesetFloor.png', w: 352, h: 417, columns: 22, count: 572 },
   { key: 'water', name: 'TilesetWater', file: 'TilesetWater.png', w: 448, h: 272, columns: 28, count: 476 },
   { key: 'nature', name: 'TilesetNature', file: 'TilesetNature.png', w: 384, h: 336, columns: 24, count: 504 },
+  { key: 'ruins', name: 'TilesetVillageAbandoned', file: 'TilesetVillageAbandoned.png', w: 320, h: 192, columns: 20, count: 240 },
 ];
 const FIRST_GID = {};
 {
@@ -25,8 +26,21 @@ const gid = (set, id) => FIRST_GID[set] + id;
 const ISLANDS = {
   dirt: ['floor', [154, 155, 156, 176, 177, 178, 198, 199, 200]],
   pond: ['water', [168, 169, 170, 196, 197, 198, 224, 225, 226]],
+  mud: ['floor', [319, 320, 321, 341, 342, 343, 363, 364, 365]], // 유적 바닥의 짙은 흙
 };
-const GRASS = [264, 264, 264, 264, 264, 264, 265, 266, 267, 268, 244, 245];
+// 바탕 땅 (지도마다 고른다): 풀밭 / 유적의 흙바닥
+const BASES = {
+  grass: [264, 264, 264, 264, 264, 264, 265, 266, 267, 268, 244, 245],
+  earth: [429, 429, 429, 429, 429, 430, 431, 432, 433],
+};
+// 여러 칸짜리 유적 구조물 (TilesetVillageAbandoned) — 행 단위 그림 번호
+const RUINS = {
+  house: [[0, 1, 2, 3], [20, 21, 22, 23], [40, 41, 42, 43]], // 무너진 돌집 (가운데 어두운 입구)
+  pillar: [[60, 61], [80, 81], [100, 101]], // 부서진 굵은 기둥
+  thinPillar: [[62], [82], [102]],
+  statue: [[109, 110], [129, 130]], // 이끼 낀 개구리 석상
+};
+const RUBBLE = [86, 87, 88, 89, 90]; // 돌무더기 (TilesetVillageAbandoned)
 const TREES = {
   green: [16, 17, 40, 41],
   cherry: [14, 15, 38, 39],
@@ -56,9 +70,11 @@ function seeded(seed) {
 }
 
 class MapBuilder {
-  constructor(name, title, width, height, seed) {
+  constructor(name, title, width, height, seed, { base = 'grass', dark = false } = {}) {
     this.name = name;
     this.title = title;
+    this.base = base;
+    this.dark = dark;
     this.width = width;
     this.height = height;
     this.rnd = seeded(seed);
@@ -67,7 +83,7 @@ class MapBuilder {
     this.decor = blank();
     this.above = blank();
     this.collide = blank();
-    this.terrain = new Array(width * height).fill('grass'); // grass | dirt | pond
+    this.terrain = new Array(width * height).fill('grass'); // grass(바탕 땅) | dirt | pond | mud
     this.taken = new Array(width * height).fill(false); // 장식을 더 놓을 수 없는 칸
     this.objects = [];
   }
@@ -148,8 +164,35 @@ class MapBuilder {
   }
 
   // 시든 나무가 길을 막는 칸 범위. region 지역이 복원되면 사라진다.
-  barrier(x, y, w, h, region) {
-    this.objects.push({ name: 'barrier', x: x * TILE, y: y * TILE, w: w * TILE, h: h * TILE, props: { region } });
+  // 길을 막는 것. unlock: 'restore:<지역>'(지역 복원 시) / 'dig'(너구리가 open:<id> 흙더미를 파면) / 'key:<아이템>'(열쇠)
+  // look: 'dead-tree'(시든 나무) / 'rubble'(돌무더기) / 'door'(잠긴 문)
+  barrier(x, y, w, h, { id, unlock, look }) {
+    this.objects.push({ name: 'barrier', x: x * TILE, y: y * TILE, w: w * TILE, h: h * TILE, props: { id, unlock, look } });
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) this.taken[this.i(xx, yy)] = true;
+  }
+
+  // 여러 칸짜리 구조물을 (x, y)를 왼쪽 위로 찍는다. 윗줄 aboveRows개는 캐릭터보다 위, 나머지 줄은 막힌다.
+  stamp(set, rows, x, y, aboveRows) {
+    rows.forEach((row, r) =>
+      row.forEach((id, c) => {
+        const xx = x + c;
+        const yy = y + r;
+        if (!this.inside(xx, yy)) return;
+        const top = r < aboveRows;
+        (top ? this.above : this.decor)[this.i(xx, yy)] = gid(set, id);
+        this.taken[this.i(xx, yy)] = true;
+        if (!top) this.block(xx, yy);
+      }),
+    );
+  }
+
+  // 돌무더기 벽 (1칸짜리 돌을 이어 놓는다)
+  rubbleWall(x0, x1, y) {
+    for (let x = x0; x <= x1; x++) {
+      this.decor[this.i(x, y)] = gid('ruins', this.pick(RUBBLE));
+      this.taken[this.i(x, y)] = true;
+      this.block(x, y);
+    }
   }
 
   // 다른 지역으로 넘어가는 칸 범위. 들어서면 to 지도의 spawn 지점에 나타난다.
@@ -192,13 +235,13 @@ class MapBuilder {
       for (let x = 0; x < this.width; x++) {
         const kind = this.terrain[this.i(x, y)];
         if (kind === 'grass') {
-          this.ground[this.i(x, y)] = gid('floor', this.pick(GRASS));
+          this.ground[this.i(x, y)] = gid('floor', this.pick(BASES[this.base]));
           continue;
         }
         const same = (dx, dy) => !this.inside(x + dx, y + dy) || this.terrain[this.i(x + dx, y + dy)] === kind;
         const col = same(-1, 0) ? (same(1, 0) ? 1 : 2) : 0;
         const row = same(0, -1) ? (same(0, 1) ? 1 : 2) : 0;
-        const [set, ids] = ISLANDS[kind === 'dirt' ? 'dirt' : 'pond'];
+        const [set, ids] = ISLANDS[kind];
         this.ground[this.i(x, y)] = gid(set, ids[row * 3 + col]);
         if (kind === 'pond') this.block(x, y);
       }
@@ -214,7 +257,10 @@ class MapBuilder {
       infinite: false, compressionlevel: -1,
       width: this.width, height: this.height, tilewidth: TILE, tileheight: TILE,
       nextlayerid: 6, nextobjectid: this.objects.length + 1,
-      properties: [{ name: 'title', type: 'string', value: this.title }],
+      properties: [
+        { name: 'title', type: 'string', value: this.title },
+        { name: 'dark', type: 'bool', value: this.dark },
+      ],
       tilesets: TILESETS.map((t) => ({
         firstgid: FIRST_GID[t.key], name: t.name, image: `../assets/tilesets/${t.file}`,
         imagewidth: t.w, imageheight: t.h, columns: t.columns, tilecount: t.count,
@@ -263,7 +309,7 @@ function meadowA() {
   m.point('start', 14, 46);
   m.point('from-forest-b', 14, 4);
   m.exit(12, 0, 6, 1, 'forest-b', 'from-meadow-a');
-  m.barrier(12, 2, 6, 2, 'meadow-a');
+  m.barrier(12, 2, 6, 2, { id: 'meadow-gate', unlock: 'restore:meadow-a', look: 'dead-tree' });
   m.treasures({ gem: [3, 29], fragment: [23, 8], altar: [17, 26] });
   m.point('pet', 7, 32);
   m.dig(25, 30, 'pan-flute');
@@ -301,7 +347,7 @@ function forestB() {
   m.point('from-hill-c', 11, 4);
   m.exit(10, H - 1, 4, 1, 'meadow-a', 'from-forest-b');
   m.exit(10, 0, 4, 1, 'hill-c', 'from-forest-b');
-  m.barrier(10, 2, 4, 2, 'forest-b');
+  m.barrier(10, 2, 4, 2, { id: 'forest-gate', unlock: 'restore:forest-b', look: 'dead-tree' });
   m.treasures({ gem: [19, 25], fragment: [4, 19], altar: [14, 20] });
   m.dig(5, 28, 'letter');
   m.dig(20, 9, 'hourglass');
@@ -324,13 +370,14 @@ function hillC() {
 
   m.area('dirt', 13, 20, 3, H - 20); // 숲길에서 올라오는 길
   m.area('dirt', 10, 12, 10, 8); // 언덕 위 공터
+  m.area('dirt', 13, 0, 3, 12); // 공터에서 북쪽 유적으로 가는 오래된 길
 
-  m.border('round', { bottom: [12, 17] });
+  m.border('round', { bottom: [12, 17], top: [12, 17] });
   m.bigTree('cherry', 6, 9);
   m.bigTree('cherry', 24, 9);
   m.bigTree('cherry', 6, 27);
   m.bigTree('cherry', 24, 28);
-  m.bigTree('green', 15, 6);
+  m.bigTree('green', 21, 5);
   const trees = [
     ['cherry', 3, 17], ['cherry', 24, 18], ['green', 9, 31], ['green', 19, 32], ['cherry', 21, 23], ['cherry', 7, 22],
   ];
@@ -342,7 +389,10 @@ function hillC() {
   m.dig(22, 33, 'flower-seed');
   for (const [x, y] of [[13, 13], [17, 13], [12, 17], [18, 17]]) m.single(CRYSTALS, x, y, false, true);
   m.point('from-forest-b', 14, H - 3);
+  m.point('from-ruins-d', 14, 4);
   m.exit(12, H - 1, 6, 1, 'forest-b', 'from-hill-c');
+  m.exit(12, 0, 6, 1, 'ruins-d', 'from-hill-c');
+  m.barrier(12, 2, 6, 2, { id: 'hill-gate', unlock: 'restore:hill-c', look: 'dead-tree' });
 
   const nearPath = (x, y) => x >= 12 && x <= 16;
   m.scatter(BUSHES, 8, true, nearPath);
@@ -352,8 +402,60 @@ function hillC() {
   return m;
 }
 
+// ── 잊힌 유적 D (던전) ────────────────────────────────────
+// 언덕 북쪽 숲속의 어두운 유적. 무너진 돌무더기를 너구리가 파서 길을 내고,
+// 옆방에서 은빛 열쇠를 찾아 잠긴 문 안의 보석을 꺼낸 뒤, 무너진 돌집 앞 제단에서 마지막 기억을 되찾는다.
+function ruinsD() {
+  const W = 24;
+  const H = 36;
+  const m = new MapBuilder('ruins-d', '잊힌 유적', W, H, 20261013, { base: 'earth', dark: true });
+
+  m.area('mud', 10, 25, 4, H - 25); // 입구 통로
+  m.area('mud', 6, 6, 12, 5); // 돌집 앞 광장
+
+  m.border('pine', { bottom: [10, 13] });
+
+  // 위쪽: 무너진 돌집과 기둥, 석상
+  m.stamp('ruins', RUINS.house, 10, 2, 2);
+  m.stamp('ruins', RUINS.thinPillar, 7, 3, 2);
+  m.stamp('ruins', RUINS.thinPillar, 16, 3, 2);
+  m.stamp('ruins', RUINS.statue, 19, 7, 1);
+  m.stamp('ruins', RUINS.statue, 3, 7, 1);
+
+  // 가운데: 기둥 사이 방들. 오른쪽 구석방은 잠긴 문 안에 보석이 있다.
+  m.stamp('ruins', RUINS.pillar, 6, 13, 2);
+  m.stamp('ruins', RUINS.pillar, 12, 17, 2);
+  m.stamp('ruins', RUINS.pillar, 6, 19, 2);
+  m.rubbleWall(17, 21, 12); // 구석방 위 벽
+  m.rubbleWall(17, 21, 17); // 구석방 아래 벽
+  for (const y of [13, 15, 16]) m.rubbleWall(17, 17, y); // 구석방 왼쪽 벽 (14번 줄은 문)
+  m.barrier(17, 14, 1, 1, { id: 'ruins-door', unlock: 'key:silver-key', look: 'door' });
+
+  // 아래쪽: 입구 위를 막은 돌무더기 벽. 가운데는 너구리가 파면 열린다.
+  m.rubbleWall(2, 9, 23);
+  m.rubbleWall(14, 21, 23);
+  m.rubbleWall(2, 9, 24);
+  m.rubbleWall(14, 21, 24);
+  m.barrier(10, 23, 4, 2, { id: 'ruins-rubble', unlock: 'dig', look: 'rubble' });
+  m.dig(11, 26, 'open:ruins-rubble');
+
+  m.treasures({ gem: [20, 14], fragment: [4, 10], altar: [12, 8] });
+  m.dig(3, 15, 'silver-key');
+
+  m.point('from-hill-c', 11, H - 4);
+  m.exit(10, H - 1, 4, 1, 'hill-c', 'from-ruins-d');
+
+  // 덤불·바위는 통로와 방(11~22번 줄)을 피해서 놓는다. (문·흙더미로 가는 길이 막히지 않게)
+  const keepClear = (x, y) => (x >= 9 && x <= 14) || (y >= 11 && y <= 22);
+  m.scatter(BUSHES, 10, true, keepClear);
+  m.scatter(ROCKS, 6, true, keepClear);
+
+  m.paintGround();
+  return m;
+}
+
 mkdirSync('public/maps', { recursive: true });
-for (const map of [meadowA(), forestB(), hillC()]) {
+for (const map of [meadowA(), forestB(), hillC(), ruinsD()]) {
   writeFileSync(`public/maps/${map.name}.json`, JSON.stringify(map.toTiled()));
   console.log(`public/maps/${map.name}.json (${map.width}×${map.height})`);
 }

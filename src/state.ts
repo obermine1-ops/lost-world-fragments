@@ -14,13 +14,15 @@ export interface GameState {
   // 이미 파 본 흙더미 / 찾은 희귀 아이템
   dug: string[];
   items: string[];
+  // 열린 길(돌무더기·잠긴 문)
+  opened: string[];
 }
 
 export const FIRST_MAP = 'meadow-a';
-export const MAPS = ['meadow-a', 'forest-b', 'hill-c'] as const;
+export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d'] as const;
 
 export function newGame(): GameState {
-  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, dug: [], items: [] };
+  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, dug: [], items: [], opened: [] };
 }
 
 export const game = { state: newGame() };
