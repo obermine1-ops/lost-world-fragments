@@ -13,9 +13,11 @@ const SCALE = 2;
 const CELL = 16 * SCALE;
 // 벽 (TilesetWallSimple, 10열): 색 세트 왼쪽 위 번호(base)에서 왼위·위·오위 / 왼·오 / 왼아래·아래·오아래
 const WALL = { tl: 0, t: 2, tr: 4, l: 20, r: 24, bl: 40, b: 42, br: 44 };
-// 상자 한 줄 8칸 (물건이 30개쯤까지 4줄로 들어간다)
+// 상자 한 줄 8칸 × 4줄. 넘치면 쪽을 넘겨 본다.
 const TRAY_COLS = 8;
+const TRAY_ROWS = 4;
 const TRAY_SLOT = 40;
+const TRAY_PAGE = TRAY_COLS * TRAY_ROWS;
 
 // 나의 집: 아래 상자에서 물건을 고르고, 방 바닥 칸을 눌러 놓는다.
 // 놓인 물건을 누르면 다시 집어 든다(옮기기). 집어 든 채로 상자를 누르면 치운다.
@@ -28,6 +30,7 @@ export class HouseScene extends Phaser.Scene {
   private hint!: Phaser.GameObjects.Text;
   private ghost?: Phaser.GameObjects.Container;
   private roomLayer!: Phaser.GameObjects.Container;
+  private trayPage = 0;
 
   constructor() {
     super('House');
@@ -36,6 +39,7 @@ export class HouseScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     this.held = undefined;
+    this.trayPage = 0;
     fadeIn(this);
     music(this.game, 'quiet');
     this.cameras.main.setBackgroundColor('#1b1724');
@@ -133,8 +137,22 @@ export class HouseScene extends Phaser.Scene {
     const free = owned.filter((o) => !s.house.some((h) => h.key === o.key));
     const label = this.add.text(16, top, `상자 (${free.length})`, { fontFamily: FONT, fontSize: '13px', color: '#8f86c9' });
     this.tray.add(label);
+    const pages = Math.max(1, Math.ceil(free.length / TRAY_PAGE));
+    this.trayPage = Math.min(this.trayPage, pages - 1);
+    if (pages > 1) {
+      const turn = (step: number) => {
+        this.trayPage = (this.trayPage + step + pages) % pages;
+        sfx(this, 'flip', 0.4);
+        this.refresh();
+      };
+      this.tray.add(addButton(this, width - 112, top + 8, '◀', () => turn(-1), 36, 26));
+      this.tray.add(
+        this.add.text(width - 74, top + 8, `${this.trayPage + 1}/${pages}`, { fontFamily: FONT, fontSize: '12px', color: '#d8c9a3' }).setOrigin(0.5),
+      );
+      this.tray.add(addButton(this, width - 36, top + 8, '▶', () => turn(1), 36, 26));
+    }
     const left = (width - TRAY_COLS * TRAY_SLOT) / 2 + TRAY_SLOT / 2;
-    free.forEach((p, i) => {
+    free.slice(this.trayPage * TRAY_PAGE, (this.trayPage + 1) * TRAY_PAGE).forEach((p, i) => {
       const x = left + (i % TRAY_COLS) * TRAY_SLOT;
       const y = top + 40 + Math.floor(i / TRAY_COLS) * TRAY_SLOT;
       const selected = this.held?.key === p.key;

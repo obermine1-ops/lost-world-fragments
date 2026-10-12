@@ -12,6 +12,7 @@ import { REGIONS, firefliesOf, regionOf, regionsOf, seasonOf, type Region } from
 import { itemOf, withJosa } from '../items';
 import { PET_TEXTURE, Pet, type PetKind } from '../pet';
 import type { CollectionData } from './CollectionScene';
+import type { WorldMapData } from './WorldMapScene';
 import { furnitureFrom } from '../furniture';
 
 // 타일 16px 그림을 2배로 확대해 보여준다. (폰 화면에 가로 약 11칸 × 세로 20칸)
@@ -153,8 +154,11 @@ export class GameScene extends Phaser.Scene {
       return o ? { x: o.x!, y: o.y! } : undefined;
     };
 
-    // 어디에 나타날지: 다른 지역에서 넘어옴 → 그 길목 / 이어하기 → 마지막 위치 / 처음 → 시작 지점
-    const start = (data.spawn && spot(data.spawn)) ||
+    // 세계 지도로 빠른 이동: 집 앞(봄 들판) → 시작 지점 → 앞 지역에서 들어오는 길목
+    const travelSpot = () =>
+      spot('from-house') || spot('start') || spot(objects.find((o) => o.name?.startsWith('from-') && o.name !== 'from-house')?.name ?? '');
+    // 어디에 나타날지: 다른 지역에서 넘어옴 → 그 길목 / 빠른 이동 / 이어하기 → 마지막 위치 / 처음 → 시작 지점
+    const start = (data.spawn === 'travel' ? travelSpot() : data.spawn && spot(data.spawn)) ||
       (state.x !== undefined && state.y !== undefined ? { x: state.x, y: state.y } : undefined) ||
       spot('start') || { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
     this.player = this.add.sprite(start.x, start.y, 'hero', 0);
@@ -932,6 +936,7 @@ export class GameScene extends Phaser.Scene {
 
     this.ui.add(addButton(this, this.scale.width - 40, 24, '도감', () => this.openCollection(), 64, 32));
     this.ui.add(addMuteButton(this, this.scale.width - 48, 62));
+    this.ui.add(addButton(this, this.scale.width - 40, 100, '지도', () => this.openWorldMap(), 64, 32));
   }
 
   // 지금 무엇을 하면 되는지 한 줄로 알려 준다.
@@ -983,6 +988,31 @@ export class GameScene extends Phaser.Scene {
     this.ui.add(hint);
     this.tweens.add({ targets: hint, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
     return hint;
+  }
+
+  // 세계 지도: 되찾은 지역(과 지금 되찾을 지역)으로 바로 이동하거나 집으로 간다.
+  private openWorldMap() {
+    if (this.busy || this.leaving) return;
+    this.stopMoving();
+    this.scene.pause();
+    // 장면 다시 움직이기는 다음 프레임에 처리되므로, 이동은 다시 움직인 뒤에 한다.
+    const close = (then?: () => void) => {
+      if (then) this.events.once(Phaser.Scenes.Events.RESUME, then);
+      this.scene.stop('WorldMap');
+      this.scene.resume();
+    };
+    this.scene.launch('WorldMap', {
+      current: game.state.map,
+      onClose: () => close(),
+      onTravel: (map) => close(() => this.leaveTo(map, 'travel')),
+      onHome: () => close(() => {
+        this.leaving = true;
+        game.state.map = 'meadow-a';
+        game.state.x = game.state.y = undefined;
+        saveGame(game.state);
+        fadeTo(this, 'House');
+      }),
+    } satisfies WorldMapData);
   }
 
   private openCollection() {
@@ -1068,15 +1098,15 @@ export class GameScene extends Phaser.Scene {
 
     const color = this.color;
     this.ui.add(
-      addButton(this, width - 70, 108, '색 (테스트)', () => {
+      addButton(this, width - 70, 148, '색 (테스트)', () => {
         if (color.isAnimating) return;
         if (color.isGray) color.restore();
         else color.fade();
       }, 120, 36),
     );
     const region = this.region ?? REGIONS[0];
-    this.ui.add(addButton(this, width - 70, 150, '퍼즐 (테스트)', () => this.openPuzzle(region, false), 120, 36));
-    this.ui.add(addButton(this, width - 70, 192, '끝내기 (테스트)', () => fadeTo(this, 'End'), 120, 36));
+    this.ui.add(addButton(this, width - 70, 190, '퍼즐 (테스트)', () => this.openPuzzle(region, false), 120, 36));
+    this.ui.add(addButton(this, width - 70, 232, '끝내기 (테스트)', () => fadeTo(this, 'End'), 120, 36));
   }
 
   // 어두운 곳(유적): 화면 가장자리가 어둡고 가운데(캐릭터 주변)만 밝다.

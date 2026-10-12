@@ -78,6 +78,12 @@ export class EndScene extends Phaser.Scene {
     // 네 계절을 모두 되찾았다면: 최종 엔딩 → 크레딧
     const allDone = SEASONS.every((sea) => regionsOf(sea.key).every((r) => s.restored.includes(r.key)));
     if (allDone) {
+      // 엔딩 뒤 이어하기는 별빛 언덕이 아니라 집 앞(봄 들판)에서 시작한다.
+      if (s.map !== 'meadow-a' || s.x !== undefined) {
+        s.map = 'meadow-a';
+        s.x = s.y = undefined;
+        saveGame(s);
+      }
       this.add
         .text(width / 2, height * 0.64, '✿  ☀  ✾  ❄\n모든 계절을 되찾았다', {
           fontFamily: FONT,
