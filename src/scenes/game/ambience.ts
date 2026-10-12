@@ -57,6 +57,23 @@ export function burstAmbience(scene: Phaser.Scene, season: Season, x: number, y:
   return emitter;
 }
 
+// 반짝임: 한 색의 작은 빛 알갱이가 사방으로 퍼졌다 사라진다 (보석·조각·반딧불을 주울 때)
+export function sparkle(scene: Phaser.Scene, x: number, y: number, color: number, count = 14) {
+  makeTextures(scene);
+  const emitter = scene.add.particles(x, y, 'amb-mote', {
+    emitting: false,
+    lifespan: { min: 500, max: 900 },
+    speed: { min: 20, max: 70 },
+    angle: { min: 0, max: 360 },
+    scale: { start: 1.2, end: 0.2 },
+    alpha: { start: 1, end: 0 },
+    tint: [color, 0xffffff],
+  });
+  emitter.explode(count);
+  scene.time.delayedCall(1100, () => emitter.destroy());
+  return emitter;
+}
+
 function makeTextures(scene: Phaser.Scene) {
   if (scene.textures.exists('amb-petal')) return;
   const g = scene.make.graphics({}, false);

@@ -17,7 +17,7 @@ import type { FishingData } from './FishingScene';
 import { furnitureFrom, isComplete } from '../furniture';
 import { MAX_HEARTS, heartBar, heartsOf, petPet, bondMessage } from '../bond';
 import { hasPet, prop } from './game/common';
-import { RAINBOW, burstAmbience, createAmbience } from './game/ambience';
+import { RAINBOW, burstAmbience, createAmbience, sparkle } from './game/ambience';
 import { footprints, guideTarget, unblockers } from './game/guide';
 import { MSG_CAVE_GIFT, MSG_NO_FISH, MSG_TREASURE_EMPTY, NEWS_LINES, NEWS_TIP, SHARDS, shardCount } from './game/texts';
 
@@ -413,7 +413,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private collectFirefly(ff: Phaser.GameObjects.Container, id: string) {
-    this.pickupEffect(ff);
+    this.pickupEffect(ff, 0xffb3e6);
     sfx(this, 'gem', 0.35);
     game.state.fireflies.push(id);
     this.savePosition();
@@ -580,7 +580,11 @@ export class GameScene extends Phaser.Scene {
 
   // ── 줍기 ─────────────────────────────────────────────────
 
-  private pickupEffect(obj: Phaser.GameObjects.Container) {
+  // 주울 때: 커지며 사라지고, 그 색의 빛 알갱이가 반짝 퍼진다
+  private pickupEffect(obj: Phaser.GameObjects.Container, color: number) {
+    const glint = sparkle(this, obj.x, obj.y, color);
+    glint.setDepth(DEPTH.above + 1);
+    this.glow.add(glint);
     this.tweens.killTweensOf(obj.list);
     this.tweens.add({
       targets: obj,
@@ -593,7 +597,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private collectFragment(fragment: Phaser.GameObjects.Container, id: string) {
-    this.pickupEffect(fragment);
+    this.pickupEffect(fragment, 0xffe9a8);
     sfx(this, 'pickup');
     game.state.fragments.push(id);
     this.savePosition();
@@ -602,7 +606,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private collectGem(gem: Phaser.GameObjects.Container, id: string, region: Region) {
-    this.pickupEffect(gem);
+    this.pickupEffect(gem, region.gemTint ?? region.gemColor);
     sfx(this, 'gem');
     game.state.gems.push(id);
     this.savePosition();
@@ -659,8 +663,9 @@ export class GameScene extends Phaser.Scene {
       this.tweens.killTweensOf(sprite);
       sprite.destroy();
       const pet = this.addPet(kind, x, y);
-      // 동료가 된 순간 그 동물에게 먼저 색이 돌아온다.
+      // 동료가 된 순간 그 동물에게 먼저 색이 돌아온다. 하트가 퐁퐁.
       this.tweens.add({ targets: pet.sprite, scale: 1.4, duration: 250, yoyo: true });
+      for (let i = 0; i < 3; i++) this.time.delayedCall(i * 220, () => this.floatHeart(pet.sprite, '♥'));
       if (kind === 'frog') game.state.frog = true;
       else if (kind === 'parrot') game.state.parrot = true;
       else if (kind === 'hamster') game.state.hamster = true;
@@ -982,14 +987,14 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // 계절 카드: 화면 가운데 띠 위에 "두 번째 계절 · 여름" — 장 넘김처럼 떴다가 사라진다
+  // 계절 카드: 화면 위쪽 띠 위에 (가운데의 안내 메시지와 겹치지 않게) "두 번째 계절 · 여름" — 장 넘김처럼 떴다가 사라진다
   private showSeasonCard(season: Season) {
     const { width, height } = this.scale;
     const ordinal = { spring: '첫', summer: '두', autumn: '세', winter: '네' }[season];
     const icon = { spring: '✿', summer: '☀', autumn: '✾', winter: '❄' }[season];
-    const band = this.add.rectangle(width / 2, height * 0.42, width, 120, 0x0e0c16, 0.7);
-    const small = this.add.text(width / 2, height * 0.42 - 30, `${ordinal} 번째 계절`, { fontFamily: FONT, fontSize: '14px', color: '#d8c9a3' }).setOrigin(0.5);
-    const big = this.add.text(width / 2, height * 0.42 + 10, `${icon}  ${seasonOf(season).name}  ${icon}`, { fontFamily: FONT, fontSize: '34px', color: '#ffffff' }).setOrigin(0.5);
+    const band = this.add.rectangle(width / 2, height * 0.24, width, 120, 0x0e0c16, 0.7);
+    const small = this.add.text(width / 2, height * 0.24 - 30, `${ordinal} 번째 계절`, { fontFamily: FONT, fontSize: '14px', color: '#d8c9a3' }).setOrigin(0.5);
+    const big = this.add.text(width / 2, height * 0.24 + 10, `${icon}  ${seasonOf(season).name}  ${icon}`, { fontFamily: FONT, fontSize: '34px', color: '#ffffff' }).setOrigin(0.5);
     const parts = [band, small, big];
     for (const p of parts) {
       this.ui.add(p);
