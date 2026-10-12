@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { FONT, fadeIn } from '../ui';
 import { sfx } from '../sound';
 import { game, statsOf } from '../state';
-import { burstAmbience } from './game/ambience';
+import { burstAmbience, seasonBackdrop } from './game/ambience';
 import type { Season } from '../regions';
 
 export interface PuzzleData {
@@ -77,6 +77,7 @@ export class PuzzleScene extends Phaser.Scene {
 
     // 뒤의 들판을 어둡게 가리고, 그 위를 탭해도 들판이 반응하지 않게 막는다.
     this.add.rectangle(0, 0, width, height, 0x14121f, 0.92).setOrigin(0).setInteractive();
+    seasonBackdrop(this, data.season ?? 'spring', false, height * 0.55); // 카드 뒤에 계절빛
 
     this.add
       .text(width / 2, 70, '흩어진 기억을 맞춰보자', { fontFamily: FONT, fontSize: '20px', color: '#ffffff' })

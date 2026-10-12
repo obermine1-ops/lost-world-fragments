@@ -352,3 +352,9 @@
 # v34 (요약·크레딧에도 계절빛)
 ## Sprint 53: 계절 요약은 그 계절빛, 마지막 요약·크레딧은 무지개 — seasonBackdrop 공용화
 - 상태: **완료** (2026-10-13) — 캡처 3장 확인, `npm run test:features` 13/13, `npm run test:play` ✅ 349초
+
+---
+
+# v35 (퍼즐에도 계절빛)
+## Sprint 54: 제단 퍼즐 카드 뒤에 계절빛·입자
+- 상태: **완료** (2026-10-13) — 캡처(가을 바람 퍼즐) 확인, `npm run test:features` 13/13, `npm run test:play` ✅ 350초
