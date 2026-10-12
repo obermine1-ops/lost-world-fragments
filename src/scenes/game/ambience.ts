@@ -38,16 +38,17 @@ export function createAmbience(scene: Phaser.Scene, season: Season, tint?: numbe
 }
 
 // 한 번 팡 터지는 계절 입자 (색을 되찾는 순간 제단에서). 다 사라지면 스스로 지워진다.
-export function burstAmbience(scene: Phaser.Scene, season: Season, x: number, y: number, count = 40) {
+// size: 확대하지 않는 화면(퍼즐 등)에서는 2
+export function burstAmbience(scene: Phaser.Scene, season: Season, x: number, y: number, count = 40, size = 1) {
   makeTextures(scene);
   const a = AMBIENCE[season];
   const emitter = scene.add.particles(x, y, a.texture, {
     emitting: false,
     lifespan: { min: 1200, max: 2000 },
-    speed: { min: 30, max: 110 },
+    speed: { min: 30 * size, max: 110 * size },
     angle: { min: 0, max: 360 },
     rotate: a.spin ? { start: 0, end: a.spin } : 0,
-    scale: { min: a.scale[0], max: a.scale[1] * 1.2 },
+    scale: { min: a.scale[0] * size, max: a.scale[1] * 1.2 * size },
     alpha: { start: 1, end: 0 },
     tint: a.tint,
   });

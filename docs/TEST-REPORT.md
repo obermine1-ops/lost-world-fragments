@@ -122,3 +122,6 @@
 
 ## 2026-10-13 v26 (계절 시작 카드)
 - 캡처 확인. `npm run test:features` 11/11, `npm run test:play` ✅ 350초.
+
+## 2026-10-13 v27 (퍼즐 손맛)
+- 캡처 확인. `npm run test:features` 11/11, `npm run test:play` ✅ 350초.

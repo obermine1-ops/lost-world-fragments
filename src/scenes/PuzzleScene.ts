@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { FONT, fadeIn } from '../ui';
 import { sfx } from '../sound';
 import { game, statsOf } from '../state';
+import { burstAmbience } from './game/ambience';
 import type { Season } from '../regions';
 
 export interface PuzzleData {
@@ -50,6 +51,7 @@ export class PuzzleScene extends Phaser.Scene {
   private busy = false;
   private onComplete!: () => void;
   private wind = false;
+  private season: Season = 'spring';
   private symbols = SYMBOLS.spring;
 
   constructor() {
@@ -68,7 +70,8 @@ export class PuzzleScene extends Phaser.Scene {
     this.opened = [];
     this.busy = false;
     this.onComplete = data.onComplete;
-    const rule = RULES[data.season ?? 'spring'];
+    this.season = data.season ?? 'spring';
+    const rule = RULES[this.season];
     this.symbols = SYMBOLS[data.season ?? 'spring'];
     this.wind = rule.wind;
 
@@ -184,6 +187,10 @@ export class PuzzleScene extends Phaser.Scene {
       else if (this.wind) this.blow();
     } else {
       this.busy = true;
+      // 틀리면 두 카드가 고개를 젓듯 살짝 흔들린 뒤 뒤집힌다
+      this.time.delayedCall(FLIP_MS * 2 + 80, () =>
+        this.tweens.add({ targets: [a.container, b.container], angle: { from: -5, to: 5 }, duration: 70, yoyo: true, repeat: 1, onComplete: () => [a, b].forEach((c) => c.container.setAngle(0)) }),
+      );
       this.time.delayedCall(MISMATCH_MS, () => {
         this.flip(a, false);
         this.flip(b, false);
@@ -219,11 +226,16 @@ export class PuzzleScene extends Phaser.Scene {
       delay: FLIP_MS * 2,
       yoyo: true,
     });
+    // 짝을 맞춘 카드에서 그 계절 입자가 반짝 터진다
+    this.time.delayedCall(FLIP_MS * 2, () => burstAmbience(this, this.season, card.container.x, card.container.y, 10, 2));
   }
+
 
   private finish() {
     const { width, height } = this.scale;
     sfx(this, 'success', 0.6);
+    // 모든 카드가 차례로 폴짝 — 파도처럼
+    this.cards.forEach((c, i) => this.tweens.add({ targets: c.container, y: c.container.y - 10, duration: 160, delay: i * 50, yoyo: true, ease: 'Sine.easeOut' }));
     const message = this.add
       .text(width / 2, height / 2, '기억이 돌아왔다', {
         fontFamily: FONT,
