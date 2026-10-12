@@ -4,6 +4,7 @@ import { formatPlayTime, game, playMs } from '../state';
 import { SEASONS, regionsOf, seasonOf, type Season } from '../regions';
 import { RARE_ITEMS } from '../items';
 import { ambient, music } from '../sound';
+import { seasonBackdrop } from './game/ambience';
 import { saveGame } from '../save';
 
 const NEXT: Partial<Record<Season, { season: Season; map: string; label: string }>> = {
@@ -27,6 +28,8 @@ export class EndScene extends Phaser.Scene {
     fadeIn(this);
     ambient(this.game); // 환경 소리는 탐험 화면에서만
     music(this.game, 'end');
+    const everyDone = SEASONS.every((sea) => regionsOf(sea.key).every((r) => s.restored.includes(r.key)));
+    seasonBackdrop(this, season, everyDone, height * 0.3);
 
     this.add
       .text(width / 2, height * 0.26, `${name}을 되찾았다`, { fontFamily: FONT, fontSize: '32px', color: '#ffffff' })

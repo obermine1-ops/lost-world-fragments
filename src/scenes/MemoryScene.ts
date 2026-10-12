@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { FONT, fadeIn } from '../ui';
 import { sfx } from '../sound';
 import type { Season } from '../regions';
-import { RAINBOW, createAmbience } from './game/ambience';
+import { seasonBackdrop } from './game/ambience';
 
 export interface MemoryData {
   face?: string; // 얼굴 그림 키 (없으면 글만)
@@ -12,27 +12,6 @@ export interface MemoryData {
   season?: Season; // 그 계절의 빛깔과 입자(꽃잎·햇빛·낙엽·눈)를 뒤에 깐다
   rainbow?: boolean; // 무지개 동굴 이야기
   onComplete: () => void;
-}
-
-// 계절마다 뒤에 은은하게 번지는 빛깔
-const SEASON_GLOW: Record<Season, number> = { spring: 0xffb3d1, summer: 0x8fd8ff, autumn: 0xf2a65a, winter: 0xbfd6ff };
-
-// 가운데가 밝고 가장자리로 갈수록 투명해지는 둥근 빛 (한 번 그려 두고 색만 물들여 쓴다)
-function softGlow(scene: Phaser.Scene) {
-  const key = 'memory-glow';
-  if (!scene.textures.exists(key)) {
-    const size = 480;
-    const canvas = scene.textures.createCanvas(key, size, size)!;
-    const ctx = canvas.getContext();
-    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    g.addColorStop(0, 'rgba(255,255,255,1)');
-    g.addColorStop(0.45, 'rgba(255,255,255,0.35)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
-    canvas.refresh();
-  }
-  return key;
 }
 
 const LINE_MS = 500;
@@ -50,12 +29,7 @@ export class MemoryScene extends Phaser.Scene {
     sfx(this, 'memory', 0.5);
     this.add.rectangle(0, 0, width, height, 0x0e0c16, 0.94).setOrigin(0).setInteractive();
     // 계절빛: 가운데 큰 빛 번짐이 천천히 숨 쉬고, 그 계절의 입자가 흩날린다 (얼굴·글보다 뒤)
-    if (data.season || data.rainbow) {
-      const color = data.rainbow ? 0xd8b8ff : SEASON_GLOW[data.season!];
-      const glow = this.add.image(width / 2, height * 0.36, softGlow(this)).setTint(color).setAlpha(0.32);
-      this.tweens.add({ targets: glow, scale: 1.1, alpha: 0.45, duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      createAmbience(this, data.rainbow ? 'summer' : data.season!, data.rainbow ? RAINBOW : undefined, 2).setAlpha(0.6);
-    }
+    if (data.season || data.rainbow) seasonBackdrop(this, data.season, data.rainbow);
 
     let y = height * 0.2;
     if (data.face || data.portrait) {

@@ -74,6 +74,34 @@ export function sparkle(scene: Phaser.Scene, x: number, y: number, color: number
   return emitter;
 }
 
+// 계절빛 바탕 (기억 장면·계절 요약·크레딧): 화면 가운데 위쪽에 부드러운 빛이 천천히 숨 쉬고, 계절 입자가 흩날린다.
+// 확대하지 않는 화면용. 부른 뒤에 만든 글·그림이 그 위에 그려진다. rainbow면 무지개 빛.
+const SEASON_GLOW: Record<Season, number> = { spring: 0xffb3d1, summer: 0x8fd8ff, autumn: 0xf2a65a, winter: 0xbfd6ff };
+export function seasonBackdrop(scene: Phaser.Scene, season?: Season, rainbow = false, y = scene.scale.height * 0.36) {
+  const color = rainbow ? 0xd8b8ff : SEASON_GLOW[season ?? 'spring'];
+  const glow = scene.add.image(scene.scale.width / 2, y, softGlow(scene)).setTint(color).setAlpha(0.32);
+  scene.tweens.add({ targets: glow, scale: 1.1, alpha: 0.45, duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  createAmbience(scene, rainbow ? 'summer' : season ?? 'spring', rainbow ? RAINBOW : undefined, 2).setAlpha(0.6);
+}
+
+// 가운데가 밝고 가장자리로 갈수록 투명해지는 둥근 빛 (한 번 그려 두고 색만 물들여 쓴다)
+function softGlow(scene: Phaser.Scene) {
+  const key = 'memory-glow';
+  if (!scene.textures.exists(key)) {
+    const size = 480;
+    const canvas = scene.textures.createCanvas(key, size, size)!;
+    const ctx = canvas.getContext();
+    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.45, 'rgba(255,255,255,0.35)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    canvas.refresh();
+  }
+  return key;
+}
+
 function makeTextures(scene: Phaser.Scene) {
   if (scene.textures.exists('amb-petal')) return;
   const g = scene.make.graphics({}, false);
