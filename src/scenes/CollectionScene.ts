@@ -95,7 +95,7 @@ export class CollectionScene extends Phaser.Scene {
       const has = s.restored.includes(r.key);
       this.slot(this.slotX(i, regions.length), y + 50, `face-${r.memory.face}`, has, 1.3, () => {
         if (!has) return '아직 되찾지 못한 기억';
-        this.replay(r.memory.face, r.memory.name, r.memory.lines);
+        this.replay(r.memory.face, r.memory.name, r.memory.lines, r.season);
         return '';
       });
     });
@@ -160,6 +160,7 @@ export class CollectionScene extends Phaser.Scene {
         this.scene.pause();
         this.scene.launch('Memory', {
           lines: CAVE_ENDING,
+          rainbow: true,
           onComplete: () => {
             this.scene.stop('Memory');
             this.scene.resume();
@@ -236,11 +237,12 @@ export class CollectionScene extends Phaser.Scene {
   }
 
   // 되찾은 기억 장면을 도감 위에 다시 띄운다.
-  private replay(face: string, name: string, lines: string[]) {
+  private replay(face: string, name: string, lines: string[], season: Season) {
     this.scene.pause();
     this.scene.launch('Memory', {
       face,
       name,
+      season,
       lines,
       onComplete: () => {
         this.scene.stop('Memory');

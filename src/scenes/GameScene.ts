@@ -913,7 +913,7 @@ export class GameScene extends Phaser.Scene {
           this.scene.resume();
           return;
         }
-        this.showMemory({ face: region.memory.face, name: region.memory.name, lines: region.memory.lines }, () => {
+        this.showMemory({ face: region.memory.face, name: region.memory.name, lines: region.memory.lines, season: region.season }, () => {
           this.scene.resume();
           this.restoreRegion(region);
         });
@@ -954,7 +954,7 @@ export class GameScene extends Phaser.Scene {
       }
       this.time.delayedCall(2500, () => {
         this.scene.pause();
-        this.showMemory({ lines: season.ending }, () => {
+        this.showMemory({ lines: season.ending, season: region.season }, () => {
           this.scene.resume(); // 멈춘 장면은 화면 전환(페이드)이 진행되지 않으므로 먼저 깨운다
           fadeTo(this, 'End', { season: region.season });
         });
@@ -1043,7 +1043,7 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(1400, () => {
       this.startAmbience('summer', true, RAINBOW);
       this.scene.pause();
-      this.showMemory({ lines: CAVE_ENDING }, () => {
+      this.showMemory({ lines: CAVE_ENDING, rainbow: true }, () => {
         this.scene.resume();
         this.busy = false;
         this.playRegionMusic();

@@ -110,3 +110,6 @@
 
 ## 2026-10-13 v22 (코드 정리)
 - `npm run test:features` 11/11(막힌 길 안내 추가), `npm run test:play` ✅ 350초 — 정리 전과 같은 결과.
+
+## 2026-10-13 v23 (기억 장면에 계절빛)
+- 캡처 3번으로 밝기·양 조정. `npm run test:features` 11/11, `npm run test:play` ✅ 350초.

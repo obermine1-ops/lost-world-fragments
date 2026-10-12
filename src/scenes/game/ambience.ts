@@ -18,7 +18,8 @@ const AMBIENCE: Record<Season, {
 export const RAINBOW = [0xff8a8a, 0xffc27a, 0xfff07a, 0x9cf08a, 0x8ad8ff, 0xb59cff];
 
 // 입자를 만든다 (어느 층에 넣을지·깊이·서서히 나타나기는 부르는 쪽에서). tint를 주면 색만 바꾼다.
-export function createAmbience(scene: Phaser.Scene, season: Season, tint?: number[]) {
+// size: 확대하지 않는 화면(기억 장면 등)에서는 2 — 탐험 화면은 카메라가 2배라 같은 크기로 보인다. 화면이 넓으면 조금 더 자주 생기게(너무 빽빽하면 글을 가린다).
+export function createAmbience(scene: Phaser.Scene, season: Season, tint?: number[], size = 1) {
   makeTextures(scene);
   const cam = scene.cameras.main;
   const a = { ...AMBIENCE[season], ...(tint ? { tint } : {}) };
@@ -26,13 +27,13 @@ export function createAmbience(scene: Phaser.Scene, season: Season, tint?: numbe
     x: { onEmit: () => cam.worldView.x - 20 + Math.random() * (cam.worldView.width + 40) },
     y: { onEmit: () => cam.worldView.y - 20 + Math.random() * (cam.worldView.height + 40) },
     lifespan: a.lifespan,
-    speedX: a.speedX,
-    speedY: a.speedY,
+    speedX: { min: a.speedX.min * size, max: a.speedX.max * size },
+    speedY: { min: a.speedY.min * size, max: a.speedY.max * size },
     rotate: a.spin ? { start: 0, end: a.spin } : 0,
-    scale: { min: a.scale[0], max: a.scale[1] },
+    scale: { min: a.scale[0] * size, max: a.scale[1] * size },
     alpha: { values: [0, a.alpha, a.alpha, 0], interpolation: 'linear' },
     tint: a.tint,
-    frequency: a.frequency,
+    frequency: a.frequency / size,
   });
 }
 

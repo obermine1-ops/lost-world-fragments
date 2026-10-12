@@ -280,3 +280,9 @@
 # v22 (탐험 화면 코드 정리)
 ## Sprint 41: GameScene에서 길 안내 계산·계절의 공기·동굴/새 소식 글·공통 도우미를 src/scenes/game/로
 - 상태: **완료** (2026-10-13) — docs/sprint-41/STORIES.md
+
+---
+
+# v23 (기억 장면에 계절빛)
+## Sprint 42: 기억 장면 뒤에 계절 빛깔과 입자
+- 상태: **완료** (2026-10-13) — docs/sprint-42/STORIES.md
