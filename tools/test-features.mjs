@@ -6,7 +6,7 @@ const ALL = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f'
 const fullState = (extra = {}) => ({
   map: 'meadow-a', fragments: ALL, gems: ALL, restored: ALL, pet: true, frog: true, parrot: true, hamster: true,
   dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0,
-  tips: ['goal', 'map', 'collection', 'fishing'], stats: {}, fish: {}, bond: {}, ...extra,
+  tips: ['goal', 'map', 'collection', 'fishing', 'news-2026-10'], stats: {}, fish: {}, bond: {}, ...extra,
 });
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--mute-audio'] });
@@ -156,6 +156,26 @@ await check('계절 퍼즐 (봄·여름·가을·겨울 그림 6가지씩)', asy
     return out.join('·');
   }),
 );
+
+await check('새 소식 (돌아온 사람에게 한 번만)', async () => {
+  const st = fullState();
+  st.tips = st.tips.filter((t) => t !== 'news-2026-10');
+  await startGame(st, 'from-house');
+  const first = await run(async () => {
+    await new Promise((r) => setTimeout(r, 1300));
+    const gs = window.game.scene.getScene('Game');
+    return gs.busy && gs.ui.list.some((o) => o.type === 'Text' && o.text === '새로 생긴 것');
+  });
+  if (!first) throw new Error('처음 들어왔는데 안 뜸');
+  const now = await run(() => window.progress.state); // 새 소식을 본 뒤의 기록으로 다시 들어가기
+  await startGame(now, 'from-house');
+  const again = await run(async () => {
+    await new Promise((r) => setTimeout(r, 1300));
+    return window.game.scene.getScene('Game').ui.list.some((o) => o.type === 'Text' && o.text === '새로 생긴 것');
+  });
+  if (again) throw new Error('두 번째에도 뜸');
+  return '처음만 뜸';
+});
 
 await check('환경 소리 (되찾은 곳만, 효과음만이면 꺼짐)', async () => {
   const playing = () =>

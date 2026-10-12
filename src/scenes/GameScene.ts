@@ -61,7 +61,16 @@ const SHARDS: Record<string, { name: string; gem: string; tint: number }> = {
   'rainbow-b': { name: '하늘빛 조각', gem: 'gem-purple', tint: 0x9ae6ff },
 };
 const MSG_TREASURE_EMPTY = (n: number) => `받침돌에 빈 홈이 두 개 있다… (${n}/2)\n동굴 어딘가의 빛 조각을 찾아오자`;
-const MSG_NO_FISH = '물이 잿빛으로 고여 있다…\n색을 되찾으면 물고기도 돌아올 것 같다';
+// 새 소식 (예전 기록으로 돌아온 사람에게 한 번). 새 기능이 생기면 NEWS_TIP 이름을 바꾸고 줄을 고친다.
+const NEWS_TIP = 'news-2026-10';
+const NEWS_LINES = [
+  '✿ 낚시 — 색을 되찾은 물가의 잔물결에 다가가 보세요',
+  '♥ 친구 마음 — 동물 친구를 쓰다듬으면 하트가 차올라요',
+  '◎ 세계 지도 — 오른쪽 위 "지도"로 가 본 곳에 바로 가요',
+  '◇ 무지개 동굴 — 네 계절을 모두 되찾으면 봄 들판 어딘가에서…',
+  '♪ 되찾은 곳에서는 바람·물소리도 돌아와요',
+];
+const MSG_NO_FISH ='물이 잿빛으로 고여 있다…\n색을 되찾으면 물고기도 돌아올 것 같다';
 const MSG_CAVE_GIFT =(gift: string) => `새 가구를 얻었다: ${gift}\n(봄 들판의 나의 집에 놓을 수 있다)`;
 
 
@@ -274,6 +283,12 @@ export class GameScene extends Phaser.Scene {
     const title = mapProps.find((p) => p.name === 'title')?.value as string | undefined;
     if (mapProps.find((p) => p.name === 'dark')?.value) this.addDarkness(width, height);
     if (title) this.time.delayedCall(300, () => this.showMessage(title));
+    // 예전 기록으로 돌아온 사람에게 한 번만: 그동안 새로 생긴 것 (새로 시작한 사람은 진행하며 하나씩 안내받으므로 조용히 넘김)
+    if (!state.tips.includes(NEWS_TIP)) {
+      state.tips.push(NEWS_TIP);
+      saveGame(state);
+      if (state.restored.length > 0) this.time.delayedCall(900, () => this.showNews());
+    }
     if (this.goalText.visible) this.tip('goal', '화면 위 목표 문구를 누르면\n가는 길을 알려 줘요', 2600);
     if (state.map !== 'meadow-a') this.tip('map', '오른쪽 위 "지도"로\n가 본 곳에 바로 갈 수 있어요', 5400);
     if (state.restored.includes(state.map) && objects.some((o) => o.name === 'fishing'))
@@ -983,6 +998,25 @@ export class GameScene extends Phaser.Scene {
         });
       });
     });
+  }
+
+  // 새 소식 판: 누르면 닫힌다 (그동안은 걷지 않게 입력을 막는다)
+  private showNews() {
+    const { width, height } = this.scale;
+    this.busy = true;
+    this.stopMoving();
+    const dim = this.add.rectangle(0, 0, width, height, 0x000000, 0.6).setOrigin(0).setInteractive();
+    const box = this.add.rectangle(width / 2, height / 2, 300, 370, 0x2a2738).setStrokeStyle(2, 0x8f86c9);
+    const title = this.add.text(width / 2, height / 2 - 155, '새로 생긴 것', { fontFamily: FONT, fontSize: '18px', color: '#ffe9a8' }).setOrigin(0.5);
+    const body = this.add
+        .text(width / 2, height / 2 - 128, NEWS_LINES.join('\n'), { fontFamily: FONT, fontSize: '13px', color: '#ffffff', lineSpacing: 9, wordWrap: { width: 260, useAdvancedWrap: true } })
+      .setOrigin(0.5, 0);
+    const parts: Phaser.GameObjects.GameObject[] = [dim, box, title, body];
+    const ok = addButton(this, width / 2, height / 2 + 150, '알겠어요', () => {
+      for (const p of [...parts, ok]) p.destroy();
+      this.busy = false;
+    }, 130, 38);
+    for (const p of [...parts, ok]) this.ui.add(p);
   }
 
   // ── 낚시터 ────────────────────────────────────────────

@@ -101,3 +101,6 @@
 
 ## 2026-10-12 v19 (계절의 소리)
 - 환경 소리 음량 측정·볼륨 표. `npm run test:features` 9/9(환경 소리 포함), `npm run test:play` ✅ 350초.
+
+## 2026-10-12 v20 (새 소식)
+- `npm run test:features` 10/10 (새 소식 추가), `npm run test:play` ✅ 350초.
