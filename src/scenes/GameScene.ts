@@ -100,6 +100,8 @@ export class GameScene extends Phaser.Scene {
   private pets: Pet[] = []; // 동료 동물 (너구리 → 개구리 순으로 줄지어 따라온다)
   private collideLayer!: Phaser.Tilemaps.TilemapLayer;
   private guiding = false; // 길 안내 발자국이 떠 있는 동안
+  private messageQueue: string[] = []; // 가운데 안내 메시지는 하나씩 차례로 (겹치면 읽을 수 없다)
+  private messageShowing = false;
   private lastProgressAt = 0; // 마지막으로 무언가 진전이 있었던 때 (오래 막히면 목표 문구를 흔든다)
 
   constructor() {
@@ -119,6 +121,8 @@ export class GameScene extends Phaser.Scene {
     this.pets = [];
     this.guiding = false;
     this.lastProgressAt = 0;
+    this.messageQueue = [];
+    this.messageShowing = false;
     this.region = regionOf(state.map);
     this.world = this.add.layer();
     this.glow = this.add.layer();
@@ -1404,6 +1408,13 @@ export class GameScene extends Phaser.Scene {
 
   // 화면 가운데에 잠깐 떠올랐다 사라지는 안내 문구
   private showMessage(text: string) {
+    // 다른 메시지가 떠 있으면 줄을 세운다 (같은 말이 바로 이어지면 한 번만, 너무 많이 밀리면 오래된 것부터 버림)
+    if (this.messageShowing) {
+      if (this.messageQueue[this.messageQueue.length - 1] !== text) this.messageQueue.push(text);
+      if (this.messageQueue.length > 4) this.messageQueue.shift();
+      return;
+    }
+    this.messageShowing = true;
     const { width, height } = this.scale;
     const message = this.add
       .text(width / 2, height * 0.4, text, {
@@ -1426,7 +1437,12 @@ export class GameScene extends Phaser.Scene {
         { alpha: 1, duration: 1800 },
         { alpha: 0, duration: 400 },
       ],
-      onComplete: () => message.destroy(),
+      onComplete: () => {
+        message.destroy();
+        this.messageShowing = false;
+        const next = this.messageQueue.shift();
+        if (next) this.showMessage(next);
+      },
     });
   }
 

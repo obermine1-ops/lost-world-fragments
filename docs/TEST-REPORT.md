@@ -128,3 +128,6 @@
 
 ## 2026-10-13 v28 (줍는 손맛)
 - 캡처 2번(계절 카드·메시지 겹침 발견·수정). `npm run test:features` 11/11, `npm run test:play` ✅ 349초.
+
+## 2026-10-13 v29 (메시지 차례대로)
+- `npm run test:features` 12/12(메시지 줄 세우기 추가), `npm run test:play` ✅ 350초.

@@ -88,6 +88,24 @@ await check('길 안내 막힌 길 (잊힌 유적: 돌무더기 흙더미로 돌
   });
 });
 
+await check('안내 메시지 차례대로 (겹치지 않음)', async () => {
+  await startGame(fullState(), 'from-house');
+  return run(async () => {
+    const gs = window.game.scene.getScene('Game');
+    await new Promise((r) => setTimeout(r, 3200)); // 지역 이름 메시지가 지나가길 기다림
+    const shown = () => gs.ui.list.filter((o) => o.type === 'Text' && (o.text === '첫째' || o.text === '둘째')).map((o) => o.text);
+    gs.showMessage('첫째');
+    gs.showMessage('둘째');
+    await new Promise((r) => setTimeout(r, 200));
+    const a = shown();
+    if (a.join() !== '첫째') throw new Error(`처음: ${a.join()}`);
+    await new Promise((r) => setTimeout(r, 2600));
+    const b = shown();
+    if (b.join() !== '둘째') throw new Error(`나중: ${b.join()}`);
+    return '첫째 → 둘째';
+  });
+});
+
 await check('낚시 (물가 → 낚시 화면 → 입질 때 탭 → 기록)', async () => {
   await startGame(fullState({ x: 232, y: 344 }));
   return run(async () => {
