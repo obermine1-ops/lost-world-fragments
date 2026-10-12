@@ -1,9 +1,10 @@
-import { REGIONS, firefliesOf, regionsOf, SEASONS } from './regions';
+import { FIREFLIES_PER_REGION, REGIONS, firefliesOf, regionsOf, SEASONS } from './regions';
 import { RARE_ITEMS } from './items';
 import type { GameState } from './state';
 
 // 나의 집에 놓을 수 있는 가구. 돈·상점 없이, 탐험하며 얻는다.
 //   start: 처음부터 / 지역 이름: 그 지역을 복원하면 / season:<계절>: 그 계절을 모두 되찾으면
+//   fireflies:<계절>: 그 계절 반딧불을 모두 찾으면 / complete: 반딧불·희귀 아이템을 모두 모으면
 // frames는 위 줄 → 아래 줄 순서. 맨 아랫줄이 바닥 한 칸을 차지하고, 윗줄은 그 위로 솟아 보인다.
 export interface Furniture {
   id: string;
@@ -37,7 +38,13 @@ export const FURNITURE: Furniture[] = [
   { id: 'snow-bed', name: '눈꽃 침대', sheet: 'bed-sheet', frames: [89, 103], from: 'peak-m' },
   { id: 'chestnut-pot', name: '군밤 냄비', sheet: 'element-sheet', frames: [21], from: 'season:winter' },
   { id: 'snow-bowl', name: '눈꽃 그릇', sheet: 'element-sheet', frames: [10], from: 'fireflies:winter' },
+  { id: 'star-stand', name: '별빛 스탠드', sheet: 'element-sheet', frames: [54, 70], from: 'complete' },
 ];
+
+// 완전 수집: 숨은 반딧불과 희귀 아이템을 모두 모았는지
+export function isComplete(s: GameState) {
+  return s.fireflies.length >= REGIONS.length * FIREFLIES_PER_REGION && RARE_ITEMS.every((i) => s.items.includes(i.id));
+}
 
 // 방에 놓을 수 있는 것 = 가구 + 도감의 보석·희귀 아이템 (전시품)
 export interface Placeable {
@@ -54,6 +61,7 @@ export function ownedPlaceables(s: GameState): Placeable[] {
     s.fireflies.filter((id) => regionsOf(season as 'spring').some((r) => id.startsWith(`${r.key}-`))).length >= firefliesOf(season as 'spring');
   const owned = FURNITURE.filter((f) => {
     if (f.from === 'start') return true;
+    if (f.from === 'complete') return isComplete(s);
     if (f.from.startsWith('season:')) return seasonDone(f.from.slice(7));
     if (f.from.startsWith('fireflies:')) return firefliesDone(f.from.slice(10));
     return s.restored.includes(f.from);

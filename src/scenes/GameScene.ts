@@ -8,12 +8,12 @@ import { ActorAnimator } from '../actor';
 import { NavGrid, type Point } from '../pathfinding';
 import { game } from '../state';
 import { saveGame } from '../save';
-import { REGIONS, firefliesOf, regionOf, regionsOf, seasonOf, type Region } from '../regions';
+import { FIREFLIES_PER_REGION, REGIONS, firefliesOf, regionOf, regionsOf, seasonOf, type Region } from '../regions';
 import { itemOf, withJosa } from '../items';
 import { PET_TEXTURE, Pet, type PetKind } from '../pet';
 import type { CollectionData } from './CollectionScene';
 import type { WorldMapData } from './WorldMapScene';
-import { furnitureFrom } from '../furniture';
+import { furnitureFrom, isComplete } from '../furniture';
 
 // 타일 16px 그림을 2배로 확대해 보여준다. (폰 화면에 가로 약 11칸 × 세로 20칸)
 const ZOOM = 2;
@@ -27,6 +27,7 @@ const FEET_HALF_H = 3;
 const SAVE_EVERY_MS = 3000;
 const ALTAR_REACH = 20;
 const TOUCH_REACH = 18; // 너구리·흙더미에 다가갔다고 보는 거리
+const FIREFLY_HINT_REACH = 72; // 되찾은 지역에서 남은 반딧불이 반짝여 알려 주는 거리
 
 // 그리는 순서 (숫자가 클수록 위)
 const DEPTH = { ground: 0, decor: 1, marker: 5, actor: 10, above: 20 };
@@ -201,7 +202,7 @@ export class GameScene extends Phaser.Scene {
     if (import.meta.env.DEV) this.createDevUi(width, height);
 
     // 처음 시작한 순간(아직 한 번도 저장된 위치가 없음)에만 조작 안내를 보여 준다.
-    const firstTime = !data.spawn && state.x === undefined && state.map === 'meadow-a';
+    const firstTime = !data.spawn && state.x === undefined && state.map === 'meadow-a' && state.restored.length === 0;
     this.playRegionMusic();
 
     // 지역에 들어오면 저장. 걷는 동안에도 가끔, 앱을 내리거나 끌 때도 위치를 저장한다.
@@ -302,6 +303,10 @@ export class GameScene extends Phaser.Scene {
       if (o.name === 'firefly' && id && !state.fireflies.includes(id)) {
         const ff = this.createFirefly(o.x!, o.y!);
         this.onTouch(ff, () => this.collectFirefly(ff, id));
+        // 색을 되찾은 지역에서는 남은 반딧불 가까이 가면 반짝이며 소리로 알려 준다.
+        this.addSpot(o.x!, o.y!, FIREFLY_HINT_REACH, () => {
+          if (ff.active && game.state.restored.includes(game.state.map)) this.pingFirefly(ff);
+        });
       }
       // 나의 집 문 앞: 서면 들어간다.
       if (o.name === 'house') this.addSpot(o.x!, o.y!, TOUCH_REACH, () => this.enterHouse());
@@ -353,11 +358,21 @@ export class GameScene extends Phaser.Scene {
     return ff;
   }
 
+  // 반딧불이 가까이 있다는 신호: 작은 소리 + 퍼지는 빛 고리 + 잠깐 환하게
+  private pingFirefly(ff: Phaser.GameObjects.Container) {
+    sfx(this, 'secret', 0.25);
+    const ring = this.add.circle(ff.x, ff.y, 4).setStrokeStyle(1.5, 0xffffff, 0.9).setDepth(ff.depth);
+    this.glow.add(ring);
+    this.tweens.add({ targets: ring, scale: 6, alpha: 0, duration: 900, ease: 'Sine.easeOut', repeat: 1, onComplete: () => ring.destroy() });
+    this.tweens.add({ targets: ff, alpha: 1, scale: 1.6, duration: 300, yoyo: true, hold: 1200 });
+  }
+
   private collectFirefly(ff: Phaser.GameObjects.Container, id: string) {
     this.pickupEffect(ff);
     sfx(this, 'gem', 0.35);
     game.state.fireflies.push(id);
     this.savePosition();
+    this.updateHud();
     const season = this.region?.season ?? 'spring';
     const keys = regionsOf(season).map((r) => r.key);
     const found = game.state.fireflies.filter((f) => keys.some((k) => f.startsWith(`${k}-`))).length;
@@ -367,6 +382,17 @@ export class GameScene extends Phaser.Scene {
       const gift = furnitureFrom(`fireflies:${season}`).map((f) => f.name).join(', ');
       this.time.delayedCall(2600, () => this.showMessage(`${seasonOf(season).name}의 반딧불을 모두 찾았다!\n새 가구: ${gift}`));
     }
+    this.checkComplete(5200);
+  }
+
+  // 마지막 반딧불·희귀 아이템을 모으는 순간 한 번: 완전 수집 선물
+  private checkComplete(delay: number) {
+    if (!isComplete(game.state)) return;
+    const gift = furnitureFrom('complete').map((f) => f.name).join(', ');
+    this.time.delayedCall(delay, () => {
+      sfx(this, 'success', 0.5);
+      this.showMessage(`세상에 흩어진 것을 모두 모았다!\n새 가구: ${gift}`);
+    });
   }
 
   private createGem(x: number, y: number, region: Region) {
@@ -762,6 +788,7 @@ export class GameScene extends Phaser.Scene {
     } else {
       game.state.items.push(reward);
       this.showMessage(`${finder} ${withJosa(itemOf(reward)?.name ?? reward, '을', '를')}\n찾아냈다! (도감에 기록)`);
+      this.checkComplete(2600);
     }
     this.savePosition();
     this.updateHud();
@@ -946,8 +973,9 @@ export class GameScene extends Phaser.Scene {
     if (!r) return '';
     if (s.restored.includes(r.key)) {
       const next = REGIONS[REGIONS.indexOf(r) + 1];
-      if (!next) return '';
-      if (s.restored.includes(next.key)) return '';
+      const ff = s.fireflies.filter((f) => f.startsWith(`${r.key}-`)).length;
+      const fireflyHint = ff < FIREFLIES_PER_REGION ? `숨은 반딧불 ${ff}/${FIREFLIES_PER_REGION} — 가까이 가면 반짝인다` : '';
+      if (!next || s.restored.includes(next.key)) return fireflyHint;
       if (next.season !== r.season) return seasonOf(next.season).entry;
       return '목표: 열린 길을 따라 다음 장소로';
     }

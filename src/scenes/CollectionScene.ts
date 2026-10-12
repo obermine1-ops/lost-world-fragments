@@ -4,6 +4,7 @@ import { game } from '../state';
 import { SEASONS, firefliesOf, regionsOf, type Season } from '../regions';
 import { RARE_ITEMS } from '../items';
 import type { MemoryData } from './MemoryScene';
+import { isComplete } from '../furniture';
 
 export interface CollectionData {
   onClose: () => void;
@@ -31,6 +32,8 @@ export class CollectionScene extends Phaser.Scene {
     const regions = regionsOf(season);
     const items = RARE_ITEMS.filter((i) => i.season === season);
     this.add.text(width / 2, 34, '수집 도감', { fontFamily: FONT, fontSize: '22px', color: '#ffffff' }).setOrigin(0.5);
+    if (isComplete(s))
+      this.add.text(width - 20, 34, '★ 완전 수집', { fontFamily: FONT, fontSize: '12px', color: '#ffb3e6' }).setOrigin(1, 0.5);
 
     // 계절 탭 (봄 / 여름)
     SEASONS.forEach((sea, i) => {

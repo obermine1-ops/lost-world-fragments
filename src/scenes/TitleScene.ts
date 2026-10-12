@@ -5,6 +5,7 @@ import { game, newGame } from '../state';
 import { clearSave, loadGame } from '../save';
 import { INTRO_LINES, SEASONS, regionsOf, type Season } from '../regions';
 import type { MemoryData } from './MemoryScene';
+import { isComplete } from '../furniture';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -49,6 +50,8 @@ export class TitleScene extends Phaser.Scene {
       this.add
         .text(width / 2, height * 0.56, '✿  ☀  ✾  ❄  모든 계절을 되찾았다', { fontFamily: FONT, fontSize: '13px', color: '#ffe9a8' })
         .setOrigin(0.5);
+      if (isComplete(saved))
+        this.add.text(width / 2, height * 0.59, '★ 완전 수집', { fontFamily: FONT, fontSize: '12px', color: '#ffb3e6' }).setOrigin(0.5);
     }
     if (!saved) {
       addButton(this, width / 2, height * 0.72, '시작', () => this.startNew());

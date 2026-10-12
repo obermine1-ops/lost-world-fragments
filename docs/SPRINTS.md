@@ -176,3 +176,4 @@
 ## Sprint 21: 세계 지도·빠른 이동, 엔딩 후 이어하기 (Y1, Y4)
 ## Sprint 22: 반딧불 찾기 도우미 (Y2)
 ## Sprint 23: 완전 수집 선물, v5 전체 테스트 (Y3)
+- 상태: **완료** (2026-10-12) — docs/sprint-21/STORIES.md, docs/sprint-22-23/STORIES.md
