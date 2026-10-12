@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { FONT, addButton, addMuteButton, fadeIn, fadeTo } from '../ui';
-import { music, sfx } from '../sound';
+import { ambient, music, sfx, type Ambient } from '../sound';
 import { WorldColor } from '../worldColor';
 import type { PuzzleData } from './PuzzleScene';
 import type { MemoryData } from './MemoryScene';
@@ -248,6 +248,17 @@ export class GameScene extends Phaser.Scene {
     // 처음 시작한 순간(아직 한 번도 저장된 위치가 없음)에만 조작 안내를 보여 준다.
     const firstTime = !data.spawn && state.x === undefined && state.map === 'meadow-a' && state.restored.length === 0;
     this.playRegionMusic();
+    // 가끔 들리는 소리: 되찾은 봄·여름 지역은 새소리, 무지개 동굴은 물방울
+    this.time.addEvent({
+      delay: 9000,
+      loop: true,
+      callback: () => {
+        const r = this.region;
+        if (this.busy || Math.random() < 0.4) return;
+        if (!r) sfx(this, 'drop', 0.35);
+        else if (game.state.restored.includes(r.key) && (r.season === 'spring' || r.season === 'summer')) sfx(this, 'bird', 0.3);
+      },
+    });
 
     // 지역에 들어오면 저장. 걷는 동안에도 가끔, 앱을 내리거나 끌 때도 위치를 저장한다.
     this.savePosition();
@@ -1362,6 +1373,9 @@ export class GameScene extends Phaser.Scene {
 
   private playRegionMusic() {
     const r = this.region;
+    // 환경 소리는 색과 함께 돌아온다 (흑백인 곳·동굴은 조용히)
+    const sounds: Record<Season, Ambient> = { spring: 'river', summer: 'wave', autumn: 'wind', winter: 'wind2' };
+    ambient(this.game, r && game.state.restored.includes(r.key) ? sounds[r.season] : undefined);
     if (!r) {
       music(this.game, game.state.opened.includes(CAVE_DONE) ? 'credits' : 'ruins'); // 무지개 동굴
       return;

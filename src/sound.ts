@@ -2,11 +2,16 @@ import Phaser from 'phaser';
 
 // 효과음(작아서 처음에 불러옴)과 배경 음악(필요한 곡만 그때그때 불러오고, 다 쓴 곡은 메모리에서 내림).
 // 소리 설정(모두 켜짐 / 효과음만 / 꺼짐)은 기기에 기억한다.
-export const SFX = ['pickup', 'gem', 'flip', 'match', 'success', 'restore', 'dig', 'secret', 'pet', 'click', 'memory', 'splash'] as const;
+export const SFX = ['pickup', 'gem', 'flip', 'match', 'success', 'restore', 'dig', 'secret', 'pet', 'click', 'memory', 'splash', 'bird', 'drop'] as const;
 export const MUSIC = ['quiet', 'gray', 'spring', 'ruins', 'end', 'sea', 'summer', 'fall-gray', 'fall', 'winter-gray', 'winter', 'credits'] as const;
 export type Sfx = (typeof SFX)[number];
 export type Music = (typeof MUSIC)[number];
 export type SoundMode = 'all' | 'sfx' | 'off';
+// 환경 소리 (색을 되찾은 지역에 배경음 밑으로 깔린다): 시냇물·파도·산들바람·겨울바람 (tools/convert-ambient.mjs)
+export const AMBIENT = ['river', 'wave', 'wind', 'wind2'] as const;
+export type Ambient = (typeof AMBIENT)[number];
+// 배경음보다 10dB쯤 작게 들리도록 소리마다 측정해 맞춘 볼륨 (2026-10-12)
+const AMBIENT_VOLUME: Record<Ambient, number> = { river: 0.8, wave: 0.75, wind: 3.6, wind2: 0.17 };
 
 const MUSIC_VOLUME = 0.45;
 const MODE_KEY = 'lost-world-fragments/sound';
@@ -25,6 +30,10 @@ let current: { key: Music; sound: Phaser.Sound.BaseSound } | undefined;
 let wanted: Music | undefined;
 let mode: SoundMode = readMode();
 let requestLoad: ((key: Music) => void) | undefined;
+let ambCurrent: { key: Ambient; sound: Phaser.Sound.BaseSound } | undefined;
+let ambWanted: Ambient | undefined;
+let requestAmbient: ((key: Ambient) => void) | undefined;
+const ambLoading = new Set<Ambient>();
 const loading = new Set<Music>();
 
 export function sfx(scene: Phaser.Scene, key: Sfx, volume = 0.6) {
@@ -70,6 +79,10 @@ export function musicFailed(key: Music) {
   loading.delete(key);
 }
 
+export function ambientFailed(key: Ambient) {
+  ambLoading.delete(key);
+}
+
 export function soundMode() {
   return mode;
 }
@@ -83,6 +96,7 @@ export function setSoundMode(game: Phaser.Game, next: SoundMode) {
     // 무시
   }
   if (wanted) music(game, wanted);
+  ambient(game, ambWanted);
 }
 
 function readMode(): SoundMode {
@@ -103,6 +117,50 @@ function stopCurrent(game: Phaser.Game) {
     sound.stop();
     sound.destroy();
     unload(game, key);
+  });
+}
+
+// 환경 소리를 바꾼다 (key가 없으면 조용히). 음악처럼 필요할 때만 받고, "효과음만"·"꺼짐"이면 받지 않는다.
+export function ambient(game: Phaser.Game, key?: Ambient) {
+  ambWanted = key;
+  if (mode !== 'all' || !key) {
+    stopAmbient(game);
+    return;
+  }
+  if (ambCurrent?.key === key) return;
+  if (!game.cache.audio.exists(`amb-${key}`)) {
+    if (!ambLoading.has(key) && requestAmbient) {
+      ambLoading.add(key);
+      requestAmbient(key);
+    }
+    return;
+  }
+  stopAmbient(game);
+  const sound = game.sound.add(`amb-${key}`, { loop: true, volume: 0 });
+  sound.play();
+  tweenVolume(game, sound, AMBIENT_VOLUME[key], 2000);
+  ambCurrent = { key, sound };
+}
+
+export function setAmbientLoader(game: Phaser.Game, load: (key: Ambient) => void) {
+  requestAmbient = load;
+  if (ambWanted) ambient(game, ambWanted);
+}
+
+export function ambientLoaded(game: Phaser.Game, key: Ambient) {
+  ambLoading.delete(key);
+  if (ambWanted === key) ambient(game, key);
+  else if (ambCurrent?.key !== key) game.cache.audio.remove(`amb-${key}`);
+}
+
+function stopAmbient(game: Phaser.Game) {
+  if (!ambCurrent) return;
+  const { key, sound } = ambCurrent;
+  ambCurrent = undefined;
+  tweenVolume(game, sound, 0, 1000, () => {
+    sound.stop();
+    sound.destroy();
+    if (ambCurrent?.key !== key && !(ambWanted === key && mode === 'all')) game.cache.audio.remove(`amb-${key}`);
   });
 }
 

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { FONT, addButton, addMuteButton, fadeIn, fadeTo } from '../ui';
-import { music } from '../sound';
+import { ambient, music } from '../sound';
 import { game, newGame } from '../state';
 import { clearSave, exportCode, importCode, loadGame, saveGame } from '../save';
 import { CAVE_DONE, INTRO_LINES, SEASONS, regionsOf, type Season } from '../regions';
@@ -34,6 +34,7 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    ambient(this.game); // 환경 소리는 탐험 화면에서만
     music(this.game, 'quiet');
     addMuteButton(this, width - 52, height - 30);
     this.add

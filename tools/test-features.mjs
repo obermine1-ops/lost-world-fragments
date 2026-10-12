@@ -157,6 +157,36 @@ await check('계절 퍼즐 (봄·여름·가을·겨울 그림 6가지씩)', asy
   }),
 );
 
+await check('환경 소리 (되찾은 곳만, 효과음만이면 꺼짐)', async () => {
+  const playing = () =>
+    run(async () => {
+      await new Promise((r) => setTimeout(r, 2500));
+      return window.game.sound.sounds.filter((s) => s.isPlaying && s.key.startsWith('amb-')).map((s) => s.key).join(',');
+    });
+  await startGame(fullState({ map: 'beach-e' }), 'travel');
+  const restored = await playing();
+  if (restored !== 'amb-wave') throw new Error(`되찾은 해변: "${restored}"`);
+  await startGame(fullState({ map: 'beach-e', restored: [] }), 'travel');
+  const gray = await playing();
+  if (gray) throw new Error(`흑백 해변에서 "${gray}"`);
+  await startGame(fullState({ map: 'snow-k' }), 'travel');
+  // 화면 오른쪽 위 소리 버튼을 눌러 "효과음만"으로 (소리 켜짐 → 효과음만 → 소리 꺼짐 → 소리 켜짐)
+  const pressSound = () =>
+    run(() => {
+      const gs = window.game.scene.getScene('Game');
+      const btn = gs.ui.list.find((o) => o.type === 'Container' && /^소리|^효과음/.test(o.list?.[1]?.text ?? ''));
+      btn.emit('pointerup');
+      return btn.list[1].text;
+    });
+  const label = await pressSound();
+  if (label !== '효과음만') throw new Error(`버튼이 "${label}"`);
+  const sfxOnly = await playing();
+  await pressSound();
+  await pressSound(); // 다시 "소리 켜짐"으로
+  if (sfxOnly) throw new Error(`효과음만인데 "${sfxOnly}"`);
+  return '해변 파도, 흑백 조용, 효과음만 조용';
+});
+
 if (errors.length) {
   failed++;
   console.log('  ✗ 페이지 오류:\n    ' + errors.join('\n    '));

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FONT, fadeIn, fadeTo } from '../ui';
 import { REGIONS } from '../regions';
-import { music } from '../sound';
+import { ambient, music } from '../sound';
 
 const SPEED = 28; // 1초에 올라가는 픽셀
 
@@ -14,6 +14,7 @@ export class CreditsScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     fadeIn(this);
+    ambient(this.game); // 환경 소리는 탐험 화면에서만
     music(this.game, 'credits');
     this.cameras.main.setBackgroundColor('#0e0c16');
 

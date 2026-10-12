@@ -256,3 +256,9 @@
 # v18 (기능 점검 테스트)
 ## Sprint 37: npm run test:features — 봇이 지나가지 않는 기능 8가지 자동 점검, 음악 볼륨 오류 수정
 - 상태: **완료** (2026-10-12) — docs/sprint-37/STORIES.md
+
+---
+
+# v19 (계절의 소리) — PRD-v19.md
+## Sprint 38: 되찾은 지역의 환경 소리, 새소리·물방울
+- 상태: **완료** (2026-10-12) — docs/sprint-38/STORIES.md

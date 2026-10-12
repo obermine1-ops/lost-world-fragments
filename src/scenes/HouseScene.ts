@@ -5,7 +5,7 @@ import { bondMessage, heartBar, heartsOf, petPet } from '../bond';
 import type { PetKind } from '../pet';
 import { saveGame } from '../save';
 import { FLOORS, WALLPAPERS, ownedPlaceables, unlockedStyles, type Placeable } from '../furniture';
-import { music, sfx } from '../sound';
+import { ambient, music, sfx } from '../sound';
 import { WorldColor } from '../worldColor';
 
 // 방: 바깥 벽을 포함해 11×9칸, 안쪽 바닥 9×7칸. 16px 그림을 2배로 그린다.
@@ -50,6 +50,7 @@ export class HouseScene extends Phaser.Scene {
     this.held = undefined;
     this.trayPage = 0;
     fadeIn(this);
+    ambient(this.game); // 환경 소리는 탐험 화면에서만
     music(this.game, 'quiet');
     this.cameras.main.setBackgroundColor('#1b1724');
     // 집도 봄 들판의 일부: 들판의 색을 되찾기 전에는 집 안도 흑백이다.

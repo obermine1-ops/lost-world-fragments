@@ -3,7 +3,7 @@ import { FONT, addButton, fadeIn, fadeTo } from '../ui';
 import { formatPlayTime, game, playMs } from '../state';
 import { SEASONS, regionsOf, seasonOf, type Season } from '../regions';
 import { RARE_ITEMS } from '../items';
-import { music } from '../sound';
+import { ambient, music } from '../sound';
 import { saveGame } from '../save';
 
 const NEXT: Partial<Record<Season, { season: Season; map: string; label: string }>> = {
@@ -25,6 +25,7 @@ export class EndScene extends Phaser.Scene {
     const season = data.season ?? 'spring';
     const name = seasonOf(season).name;
     fadeIn(this);
+    ambient(this.game); // 환경 소리는 탐험 화면에서만
     music(this.game, 'end');
 
     this.add
