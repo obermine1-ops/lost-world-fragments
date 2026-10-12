@@ -6,7 +6,7 @@ import { chromium } from 'playwright-core';
 const speed = Number(process.argv[2] ?? 3);
 const url = process.env.GAME_URL ?? 'http://localhost:5173/';
 
-const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--mute-audio'] });
 const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e.message)));

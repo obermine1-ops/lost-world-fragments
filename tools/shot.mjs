@@ -3,7 +3,7 @@
 import { chromium } from 'playwright-core';
 
 const [out, code = '', wait = '1000'] = process.argv.slice(2);
-const browser = await chromium.launch({ channel: 'msedge', headless: true });
+const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--mute-audio'] }); // 테스트 소리가 스피커로 나오지 않게
 const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e.message)));

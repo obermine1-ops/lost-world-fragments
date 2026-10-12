@@ -15,6 +15,7 @@ import type { CollectionData } from './CollectionScene';
 import { mapTitle, type WorldMapData } from './WorldMapScene';
 import type { FishingData } from './FishingScene';
 import { furnitureFrom, isComplete } from '../furniture';
+import { MAX_HEARTS, heartBar, heartsOf, petPet, bondMessage } from '../bond';
 
 // 타일 16px 그림을 2배로 확대해 보여준다. (폰 화면에 가로 약 11칸 × 세로 20칸)
 const ZOOM = 2;
@@ -701,16 +702,34 @@ export class GameScene extends Phaser.Scene {
     const sprite = pet.sprite;
     sortByY(sprite);
     this.glow.add(sprite);
-    // 동물을 탭하면 쓰다듬어 준다 (하트)
+    // 동물을 탭하면 쓰다듬어 준다 (친구 마음 하트 — 칸이 오르면 알려 준다)
     sprite.setInteractive({ useHandCursor: true }).on('pointerup', () => {
       sfx(this, 'pet', 0.5);
       this.tweens.add({ targets: sprite, scaleY: 0.8, duration: 90, yoyo: true, repeat: 1 });
-      const heart = this.add.text(sprite.x, sprite.y - 10, '♥', { fontFamily: FONT, fontSize: '10px', color: '#ff7aa2' });
-      heart.setOrigin(0.5).setDepth(DEPTH.above).setResolution(4);
-      this.glow.add(heart);
-      this.tweens.add({ targets: heart, y: heart.y - 12, alpha: 0, duration: 900, onComplete: () => heart.destroy() });
+      const up = petPet(game.state, kind, this.time.now);
+      this.floatHeart(sprite, heartBar(heartsOf(game.state, kind)));
+      if (up) {
+        this.savePosition();
+        this.tweens.add({ targets: sprite, y: sprite.y - 6, duration: 140, yoyo: true, repeat: 1 });
+        this.time.delayedCall(500, () => this.showMessage(bondMessage(kind, up)));
+      }
+    });
+    // 마음이 가득 찬 친구는 가끔 스스로 하트를 띄운다
+    this.time.addEvent({
+      delay: 6000,
+      loop: true,
+      callback: () => {
+        if (heartsOf(game.state, kind) >= MAX_HEARTS && Math.random() < 0.5) this.floatHeart(sprite, '♥');
+      },
     });
     return pet;
+  }
+
+  private floatHeart(sprite: Phaser.GameObjects.Sprite, text: string) {
+    const heart = this.add.text(sprite.x, sprite.y - 10, text, { fontFamily: FONT, fontSize: '9px', color: '#ff7aa2', stroke: '#4a1a2c', strokeThickness: 2 });
+    heart.setOrigin(0.5).setDepth(DEPTH.above).setResolution(4);
+    this.glow.add(heart);
+    this.tweens.add({ targets: heart, y: heart.y - 12, alpha: 0, duration: 1100, onComplete: () => heart.destroy() });
   }
 
   // ── 흙더미 ───────────────────────────────────────────────

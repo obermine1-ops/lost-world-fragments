@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { FONT, addButton, fadeIn, fadeTo } from '../ui';
 import { game, statsOf } from '../state';
+import { bondMessage, heartBar, heartsOf, petPet } from '../bond';
+import type { PetKind } from '../pet';
 import { saveGame } from '../save';
 import { FLOORS, WALLPAPERS, ownedPlaceables, unlockedStyles, type Placeable } from '../furniture';
 import { music, sfx } from '../sound';
@@ -185,10 +187,11 @@ export class HouseScene extends Phaser.Scene {
   private spawnPets() {
     const s = game.state;
     const kinds = (['pet', 'frog', 'parrot', 'hamster'] as const).filter((_, i) => [s.pet, s.frog, s.parrot, s.hamster][i]);
+    const kindOf: Record<string, PetKind> = { pet: 'raccoon', frog: 'frog', parrot: 'parrot', hamster: 'hamster' };
     this.housePets = kinds.map((key) => {
       const p = this.randomFloorPoint();
       const sprite = this.add.sprite(p.x, p.y, key, 0).setScale(SCALE);
-      sprite.setInteractive({ useHandCursor: true }).on('pointerup', () => this.petTap(sprite));
+      sprite.setInteractive({ useHandCursor: true }).on('pointerup', () => this.petTap(sprite, kindOf[key]));
       this.petLayer.add(sprite);
       this.time.delayedCall(Phaser.Math.Between(300, 2500), () => this.wander(sprite, key));
       return sprite;
@@ -221,10 +224,15 @@ export class HouseScene extends Phaser.Scene {
     });
   }
 
-  private petTap(sprite: Phaser.GameObjects.Sprite) {
+  private petTap(sprite: Phaser.GameObjects.Sprite, kind: PetKind) {
     sfx(this, 'pet', 0.5);
     this.tweens.add({ targets: sprite, scaleY: SCALE * 0.8, duration: 90, yoyo: true, repeat: 1 });
-    const heart = this.add.text(sprite.x, sprite.y - 22, '♥', { fontFamily: FONT, fontSize: '18px', color: '#ff7aa2' }).setOrigin(0.5);
+    const up = petPet(game.state, kind, this.time.now);
+    if (up) {
+      saveGame(game.state);
+      this.hint.setText(bondMessage(kind, up).replace('\n', ' '));
+    }
+    const heart = this.add.text(sprite.x, sprite.y - 22, heartBar(heartsOf(game.state, kind)), { fontFamily: FONT, fontSize: '14px', color: '#ff7aa2' }).setOrigin(0.5);
     this.tweens.add({ targets: heart, y: heart.y - 20, alpha: 0, duration: 900, onComplete: () => heart.destroy() });
   }
 

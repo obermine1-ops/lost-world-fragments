@@ -244,3 +244,9 @@
 # v16 (낚시) — PRD-v16.md
 ## Sprint 35: 낚시터·낚시 화면·물고기 도감
 - 상태: **완료** (2026-10-12) — docs/sprint-35/STORIES.md
+
+---
+
+# v17 (친구 마음) — PRD-v17.md
+## Sprint 36: 쓰다듬기 하트 5칸
+- 상태: **완료** (2026-10-12) — docs/sprint-36/STORIES.md

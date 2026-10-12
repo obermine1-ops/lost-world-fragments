@@ -32,6 +32,8 @@ export interface GameState {
   stats: Record<string, RegionStats>;
   // 낚은 물고기 (fish.ts id → 잡은 수)
   fish: Record<string, number>;
+  // 친구 마음 (동물 → 쓰다듬은 점수, bond.ts)
+  bond: Record<string, number>;
 }
 
 export interface RegionStats {
@@ -49,7 +51,7 @@ export const FIRST_MAP = 'meadow-a';
 export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j', 'snow-k', 'lake-l', 'peak-m', 'cave-n'] as const;
 
 export function newGame(): GameState {
-  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, parrot: false, hamster: false, dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0, tips: [], stats: {}, fish: {} };
+  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, parrot: false, hamster: false, dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0, tips: [], stats: {}, fish: {}, bond: {} };
 }
 
 export const game = { state: newGame() };
