@@ -102,6 +102,7 @@ export class GameScene extends Phaser.Scene {
   private guiding = false; // 길 안내 발자국이 떠 있는 동안
   private messageQueue: string[] = []; // 가운데 안내 메시지는 하나씩 차례로 (겹치면 읽을 수 없다)
   private messageShowing = false;
+  private ash?: Phaser.GameObjects.Particles.ParticleEmitter; // 흑백 지역의 잿빛 먼지 (색을 되찾으면 사라진다)
   private lastProgressAt = 0; // 마지막으로 무언가 진전이 있었던 때 (오래 막히면 목표 문구를 흔든다)
 
   constructor() {
@@ -206,6 +207,12 @@ export class GameScene extends Phaser.Scene {
     cam.ignore([this.glow, this.ui]);
     this.color = new WorldColor(this, cam, state.restored.includes(state.map) || !this.region);
     if (this.region && state.restored.includes(state.map)) this.startAmbience(this.region.season, false);
+    this.ash = undefined;
+    if (this.region && !state.restored.includes(state.map)) {
+      // 색을 잃은 곳: 옅은 잿빛 먼지가 천천히 떠다닌다
+      this.ash = createAmbience(this, 'summer', [0xe6e6e6, 0x4a4a4a, 0xf2f2f2]).setAlpha(0.7).setDepth(DEPTH.above + 1);
+      this.glow.add(this.ash);
+    }
     if (!this.region && state.opened.includes(CAVE_DONE)) this.startAmbience('summer', false, RAINBOW);
 
     const glowCam = this.cameras.add(0, 0, width, height);
@@ -980,6 +987,13 @@ export class GameScene extends Phaser.Scene {
     sfx(this, 'restore', 0.7);
     this.playRegionMusic();
     this.restoreBurst(region);
+    // 잿빛 먼지는 더 생기지 않고 서서히 사라진다
+    if (this.ash) {
+      const ash = this.ash;
+      this.ash = undefined;
+      ash.stop();
+      this.tweens.add({ targets: ash, alpha: 0, duration: 1800, onComplete: () => ash.destroy() });
+    }
     this.color.restore(() => {
       this.startAmbience(region.season, true);
       this.removeBarriers((b) => b.unlock === `restore:${region.key}`);
