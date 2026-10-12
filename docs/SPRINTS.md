@@ -274,3 +274,9 @@
 # v21 (화면 전체 점검)
 ## Sprint 40: 주요 화면 12개 캡처 점검
 - 상태: **완료** (2026-10-12) — docs/sprint-40/STORIES.md
+
+---
+
+# v22 (탐험 화면 코드 정리)
+## Sprint 41: GameScene에서 길 안내 계산·계절의 공기·동굴/새 소식 글·공통 도우미를 src/scenes/game/로
+- 상태: **완료** (2026-10-13) — docs/sprint-41/STORIES.md

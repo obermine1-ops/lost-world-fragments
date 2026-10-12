@@ -107,3 +107,6 @@
 
 ## 2026-10-12 v21 (화면 전체 점검)
 - 12개 화면 캡처, 겹침 1곳 수정. `npm run test:features` 10/10, `npm run test:play` ✅ 350초.
+
+## 2026-10-13 v22 (코드 정리)
+- `npm run test:features` 11/11(막힌 길 안내 추가), `npm run test:play` ✅ 350초 — 정리 전과 같은 결과.

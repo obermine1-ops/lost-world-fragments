@@ -67,6 +67,27 @@ await check('길 안내 (목표 문구 누르면 발자국)', async () => {
   return `발자국 ${n}개`;
 });
 
+await check('길 안내 막힌 길 (잊힌 유적: 돌무더기 흙더미로 돌아감)', async () => {
+  await startGame(fullState({ map: 'ruins-d', restored: ['meadow-a', 'forest-b', 'hill-c'], gems: [], fragments: [] }), 'travel');
+  return run(() => {
+    const gs = window.game.scene.getScene('Game');
+    const t = gs.guideTarget();
+    const b = gs.player.body.center;
+    const from = { x: b.x, y: b.y };
+    const reach = (p) => {
+      const w = [from, ...gs.nav.findPath(from, p, 5, 3)];
+      const e = w[w.length - 1];
+      return Math.hypot(e.x - p.x, e.y - p.y) <= 28;
+    };
+    if (reach(t)) throw new Error('보석까지 바로 갈 수 있음 (막혀 있어야 함)');
+    const detour = gs.unblockers().find(reach);
+    if (!detour) throw new Error('돌아갈 곳 없음');
+    const mound = gs.mapObjects.find((o) => o.name === 'dig' && o.properties.some((p) => p.value === 'open:ruins-rubble'));
+    if (detour.x !== mound.x || detour.y !== mound.y) throw new Error(`엉뚱한 곳 ${JSON.stringify(detour)}`);
+    return '돌무더기 흙더미로 안내';
+  });
+});
+
 await check('낚시 (물가 → 낚시 화면 → 입질 때 탭 → 기록)', async () => {
   await startGame(fullState({ x: 232, y: 344 }));
   return run(async () => {
