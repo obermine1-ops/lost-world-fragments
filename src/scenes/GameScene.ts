@@ -1100,6 +1100,10 @@ export class GameScene extends Phaser.Scene {
     }
     if (s.restored.includes(r.key)) {
       const next = REGIONS[REGIONS.indexOf(r) + 1];
+      if (s.restored.includes('peak-m') && !s.opened.includes(CAVE_DONE)) {
+        const gate = objs.find((o) => o.name === 'exit' && prop(o, 'to') === 'cave-n');
+        return gate ? center(gate) : '오른쪽 위 "지도"에서 "나의 집으로" 간 뒤\n왼쪽 아래로 가 보세요';
+      }
       if (!next || s.restored.includes(next.key)) return '반딧불은 숨어 있어요.\n가까이 가면 반짝여요';
       const exit = objs.find((o) => o.name === 'exit' && prop(o, 'to') === next.key);
       // 다음 계절은 다른 지역에서 이어진다 → 지도로 바로 가면 된다
@@ -1205,7 +1209,7 @@ export class GameScene extends Phaser.Scene {
     sfx(this, 'secret', 0.3);
     const STEP_MS = 45;
     steps.forEach((p, i) => {
-      const dot = this.add.ellipse(p.x, p.y, 4, 3, 0xffe9a8).setAlpha(0).setDepth(DEPTH.marker);
+      const dot = this.add.ellipse(p.x, p.y, 5, 4, 0xfff6d8).setStrokeStyle(1, 0x5a3d1a, 0.7).setAlpha(0).setDepth(DEPTH.marker);
       this.glow.add(dot);
       this.tweens.chain({
         targets: dot,
@@ -1291,6 +1295,8 @@ export class GameScene extends Phaser.Scene {
       const next = REGIONS[REGIONS.indexOf(r) + 1];
       const ff = s.fireflies.filter((f) => f.startsWith(`${r.key}-`)).length;
       const fireflyHint = ff < FIREFLIES_PER_REGION ? `숨은 반딧불 ${ff}/${FIREFLIES_PER_REGION} — 가까이 가면 반짝인다` : '';
+      // 네 계절을 모두 되찾았고 무지개 동굴은 아직이면, 동굴부터 알려 준다
+      if (s.restored.includes('peak-m') && !s.opened.includes(CAVE_DONE)) return '목표: 봄 들판 왼쪽 아래, 새로 열린 동굴로';
       if (!next || s.restored.includes(next.key)) return fireflyHint;
       if (next.season !== r.season) return seasonOf(next.season).entry;
       return '목표: 열린 길을 따라 다음 장소로';

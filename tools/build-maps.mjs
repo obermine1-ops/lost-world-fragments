@@ -380,6 +380,8 @@ function meadowA() {
   m.exit(0, 44, 1, 2, 'cave-n', 'from-meadow-a');
   m.barrier(1, 44, 2, 2, { id: 'cave-gate', unlock: 'restore:peak-m', look: 'dead-tree' });
   m.point('from-cave-n', 4, 45);
+  m.single(ROCKS, 2, 42, true, true); // 입구 양옆 바위 (여기 무언가 있다는 표시)
+  m.single(ROCKS, 2, 47, true, true);
 
   const nearPath = (x, y) => (x >= 12 && x <= 16) || (x <= 8 && y >= 42 && y <= 47);
   m.scatter(BUSHES, 14, true, nearPath);

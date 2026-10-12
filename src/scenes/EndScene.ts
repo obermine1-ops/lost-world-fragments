@@ -94,6 +94,10 @@ export class EndScene extends Phaser.Scene {
           lineSpacing: 8,
         })
         .setOrigin(0.5);
+      if (!s.opened.includes('cave-treasure'))
+        this.add
+          .text(width / 2, height * 0.73, '…봄 들판 어딘가에서 무언가 열린 것 같다', { fontFamily: FONT, fontSize: '13px', color: '#8f86c9' })
+          .setOrigin(0.5);
     }
     const hint = this.add
       .text(width / 2, height * 0.8, allDone ? '화면을 탭하면 크레딧' : '화면을 탭하면 처음으로', {
