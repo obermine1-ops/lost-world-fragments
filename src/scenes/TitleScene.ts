@@ -5,6 +5,7 @@ import { game, newGame } from '../state';
 import { clearSave, exportCode, importCode, loadGame, saveGame } from '../save';
 import { CAVE_DONE, INTRO_LINES, SEASONS, regionsOf, type Season } from '../regions';
 import type { MemoryData } from './MemoryScene';
+import type { TitleBackdropData } from './TitleBackdropScene';
 import { isComplete } from '../furniture';
 
 export class TitleScene extends Phaser.Scene {
@@ -15,6 +16,12 @@ export class TitleScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     fadeIn(this);
+    // 뒤에 봄 들판이 흐른다 (봄을 되찾기 전엔 흑백). 글이 잘 읽히게 살짝 어둡게 덮는다.
+    const before = loadGame();
+    this.scene.launch('TitleBackdrop', { colored: !!before?.restored.includes('meadow-a') } satisfies TitleBackdropData);
+    this.scene.moveBelow('Title', 'TitleBackdrop');
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scene.stop('TitleBackdrop'));
+    this.add.rectangle(0, 0, width, height, 0x0e0c16, 0.55).setOrigin(0);
 
     this.add
       .text(width / 2, height * 0.36, '잃어버린\n세계의 조각', {
@@ -30,7 +37,9 @@ export class TitleScene extends Phaser.Scene {
       .text(width / 2, height * 0.5, '색과 기억을 되찾는 여행', {
         fontFamily: FONT,
         fontSize: '16px',
-        color: '#999999',
+        color: '#d0cce0',
+        stroke: '#0e0c16',
+        strokeThickness: 3,
       })
       .setOrigin(0.5);
 

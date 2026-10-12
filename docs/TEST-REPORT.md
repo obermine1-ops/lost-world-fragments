@@ -113,3 +113,6 @@
 
 ## 2026-10-13 v23 (기억 장면에 계절빛)
 - 캡처 3번으로 밝기·양 조정. `npm run test:features` 11/11, `npm run test:play` ✅ 350초.
+
+## 2026-10-13 v24 (타이틀 화면)
+- 캡처 2번으로 조정. `npm run test:features` 11/11, `npm run test:play` ✅ 350초.
