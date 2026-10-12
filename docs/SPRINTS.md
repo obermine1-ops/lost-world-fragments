@@ -250,3 +250,9 @@
 # v17 (친구 마음) — PRD-v17.md
 ## Sprint 36: 쓰다듬기 하트 5칸
 - 상태: **완료** (2026-10-12) — docs/sprint-36/STORIES.md
+
+---
+
+# v18 (기능 점검 테스트)
+## Sprint 37: npm run test:features — 봇이 지나가지 않는 기능 8가지 자동 점검, 음악 볼륨 오류 수정
+- 상태: **완료** (2026-10-12) — docs/sprint-37/STORIES.md

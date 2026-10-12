@@ -113,11 +113,17 @@ function unload(game: Phaser.Game, key: Music) {
 }
 
 // 사운드 객체에는 tween을 걸 장면이 없으므로 게임 시계로 볼륨을 조금씩 바꾼다.
+// 같은 소리에 새 볼륨 변화가 시작되면 이전 것은 멈춘다. (페이드인 도중 곡이 바뀌어 소리가 지워진 뒤에도
+// 페이드인이 계속 볼륨을 바꾸려다 오류로 게임이 멈출 수 있었다 — 기능 점검 테스트에서 발견)
+const fading = new WeakMap<Phaser.Sound.BaseSound, number>();
 function tweenVolume(game: Phaser.Game, sound: Phaser.Sound.BaseSound, to: number, ms: number, done?: () => void) {
   const s = sound as Phaser.Sound.WebAudioSound;
   const from = s.volume;
   const start = game.loop.now;
+  const token = (fading.get(sound) ?? 0) + 1;
+  fading.set(sound, token);
   const step = () => {
+    if (fading.get(sound) !== token || s.pendingRemove || !s.manager) return;
     const t = Math.min(1, (game.loop.now - start) / ms);
     s.setVolume(from + (to - from) * t);
     if (t < 1) game.events.once(Phaser.Core.Events.STEP, step);

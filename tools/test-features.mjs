@@ -1,0 +1,166 @@
+// 기능 점검: 자동 플레이 봇이 지나가지 않는 기능들을 화면 없는 Edge(음소거)에서 빠르게 확인한다.
+// 개발 서버(5173)가 켜져 있어야 한다. 실행: npm run test:features  — 하나라도 실패하면 종료 코드 1.
+import { chromium } from 'playwright-core';
+
+const ALL = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j', 'snow-k', 'lake-l', 'peak-m'];
+const fullState = (extra = {}) => ({
+  map: 'meadow-a', fragments: ALL, gems: ALL, restored: ALL, pet: true, frog: true, parrot: true, hamster: true,
+  dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0,
+  tips: ['goal', 'map', 'collection', 'fishing'], stats: {}, fish: {}, bond: {}, ...extra,
+});
+
+const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--mute-audio'] });
+const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
+const errors = [];
+page.on('pageerror', (e) => errors.push(String(e.message)));
+await page.goto(process.env.GAME_URL ?? 'http://localhost:5173/');
+await page.waitForFunction(() => window.game?.scene?.isActive('Title'), null, { timeout: 30000 });
+
+let failed = 0;
+async function check(name, fn) {
+  try {
+    const detail = await fn();
+    console.log(`  ✓ ${name}${detail ? ` — ${detail}` : ''}`);
+  } catch (e) {
+    failed++;
+    console.log(`  ✗ ${name} — ${e.message.split('\n')[0]}`);
+  }
+}
+const run = (fn, arg) => page.evaluate(fn, arg);
+const startGame = (state, spawn) =>
+  run(async ([st, sp]) => {
+    // 먼저 완전히 멈춘 뒤 다시 시작하고, 새 장면의 플레이어가 생길 때까지 기다린다 (이전 장면을 읽지 않게)
+    window.game.scene.getScenes(true).forEach((s) => s.scene.key !== 'Audio' && s.scene.stop());
+    await new Promise((r) => setTimeout(r, 150));
+    window.progress.state = st;
+    window.game.scene.start('Game', sp ? { spawn: sp } : undefined);
+    for (let i = 0; i < 50 && !(window.game.scene.isActive('Game') && window.game.scene.getScene('Game').player?.body); i++)
+      await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 400));
+  }, [state, spawn]);
+
+console.log('기능 점검');
+
+await check('세계 지도로 빠른 이동 (13개 지역 도착 칸이 막히지 않음)', async () => {
+  const bad = [];
+  for (const map of ALL) {
+    await startGame(fullState({ map }), 'travel');
+    const ok = await run(() => {
+      const gs = window.game.scene.getScene('Game');
+      const b = gs.player.body.center;
+      return !gs.collideLayer.getTileAtWorldXY(b.x, b.y);
+    });
+    if (!ok) bad.push(map);
+  }
+  if (bad.length) throw new Error(`막힘: ${bad.join(', ')}`);
+});
+
+await check('길 안내 (목표 문구 누르면 발자국)', async () => {
+  await startGame(fullState({ restored: [], gems: [], fragments: [] }));
+  const n = await run(async () => {
+    const gs = window.game.scene.getScene('Game');
+    gs.showGuide();
+    await new Promise((r) => setTimeout(r, 600));
+    return gs.glow.list.filter((o) => o.type === 'Ellipse').length;
+  });
+  if (n < 3) throw new Error(`발자국 ${n}개`);
+  return `발자국 ${n}개`;
+});
+
+await check('낚시 (물가 → 낚시 화면 → 입질 때 탭 → 기록)', async () => {
+  await startGame(fullState({ x: 232, y: 344 }));
+  return run(async () => {
+    const gs = window.game.scene.getScene('Game');
+    const o = gs.mapObjects.find((x) => x.name === 'fishing');
+    gs.moveTo(o.x + 16, o.y);
+    for (let i = 0; i < 60 && !window.game.scene.isActive('Fishing'); i++) await new Promise((r) => setTimeout(r, 150));
+    if (!window.game.scene.isActive('Fishing')) throw new Error('낚시 화면이 안 열림');
+    await new Promise((r) => setTimeout(r, 400));
+    const f = window.game.scene.getScene('Fishing');
+    for (let i = 0; i < 80 && f.state !== 'bite'; i++) await new Promise((r) => setTimeout(r, 100));
+    f.onTap();
+    const caught = Object.values(window.progress.state.fish).reduce((a, b) => a + b, 0);
+    if (caught !== 1) throw new Error(`잡은 수 ${caught}`);
+    return Object.keys(window.progress.state.fish).join(',');
+  });
+});
+
+await check('친구 마음 (쓰다듬기, 연타 방지)', async () => {
+  await startGame(fullState({ bond: { raccoon: 5 } }), 'from-house');
+  return run(() => {
+    const gs = window.game.scene.getScene('Game');
+    const raccoon = gs.pets.find((p) => p.kind === 'raccoon');
+    raccoon.sprite.emit('pointerup');
+    raccoon.sprite.emit('pointerup');
+    const v = window.progress.state.bond.raccoon;
+    if (v !== 6) throw new Error(`점수 ${v} (6이어야 함)`);
+    return '5 → 6, 두 번째는 무시';
+  });
+});
+
+await check('나의 집 (친구들이 돌아다님, 상자 쪽 넘기기)', async () => {
+  const items = ['pan-flute', 'letter', 'hourglass', 'picture-book', 'flower-seed', 'silver-key', 'old-coin', 'gourd', 'wooden-fish', 'tea-leaf', 'honey', 'maple-letter', 'stamp', 'snow-card', 'star-cup'];
+  return run(async (st) => {
+    window.game.scene.getScenes(true).forEach((s) => s.scene.key !== 'Audio' && s.scene.stop());
+    window.progress.state = st;
+    window.game.scene.start('House');
+    await new Promise((r) => setTimeout(r, 900));
+    const h = window.game.scene.getScene('House');
+    const pets = h.housePets.length;
+    const page = h.tray.list.filter((o) => o.type === 'Text').map((o) => o.text).join(' ');
+    if (pets !== 4) throw new Error(`친구 ${pets}마리`);
+    if (!page.includes('1/2')) throw new Error(`쪽 표시 없음: ${page}`);
+    return `친구 ${pets}마리, ${page}`;
+  }, fullState({ items }));
+});
+
+await check('백업 코드 (내보내기 → 불러오기 같음, 망가진 코드 거부)', async () =>
+  run(async (st) => {
+    const m = await import('/src/save.ts');
+    m.saveGame(st);
+    const code = m.exportCode();
+    const back = m.importCode(code);
+    if (JSON.stringify(back) !== JSON.stringify(m.loadGame())) throw new Error('왕복 결과가 다름');
+    if (m.importCode('LWF1:abc') !== undefined) throw new Error('망가진 코드를 받아들임');
+    return `코드 ${code.length}자`;
+  }, fullState({ fish: { crucian: 2 }, bond: { frog: 9 } })),
+);
+
+await check('도감 탭 (봄·여름·가을·겨울·물고기·기록)', async () =>
+  run(async (st) => {
+    window.progress.state = st;
+    for (const season of ['spring', 'summer', 'autumn', 'winter', 'fish', 'stats']) {
+      window.game.scene.getScenes(true).forEach((s) => s.scene.key !== 'Audio' && s.scene.stop());
+      await new Promise((r) => setTimeout(r, 150));
+      window.game.scene.start('Collection', { season, onClose() {} });
+      await new Promise((r) => setTimeout(r, 300));
+      if (!window.game.scene.isActive('Collection')) throw new Error(`${season} 탭이 안 열림`);
+    }
+    return '6개 탭';
+  }, fullState()),
+);
+
+await check('계절 퍼즐 (봄·여름·가을·겨울 그림 6가지씩)', async () =>
+  run(async () => {
+    const sc = window.game.scene.getScene('Puzzle');
+    const out = [];
+    for (const season of ['spring', 'summer', 'autumn', 'winter']) {
+      window.game.scene.getScenes(true).forEach((s) => s.scene.key !== 'Audio' && s.scene.stop());
+      await new Promise((r) => setTimeout(r, 150));
+      window.game.scene.start('Puzzle', { pairs: 6, season, onComplete() {} });
+      await new Promise((r) => setTimeout(r, 300));
+      const n = new Set(sc.cards.map((c) => c.front.list[1].frame.name)).size;
+      if (n !== 6) throw new Error(`${season} 그림 ${n}가지`);
+      out.push(season);
+    }
+    return out.join('·');
+  }),
+);
+
+if (errors.length) {
+  failed++;
+  console.log('  ✗ 페이지 오류:\n    ' + errors.join('\n    '));
+}
+await browser.close();
+console.log(failed ? `\n문제 ${failed}개` : '\n모든 기능 점검 통과');
+process.exit(failed ? 1 : 0);

@@ -10,6 +10,7 @@
     "maps": "node tools/build-maps.mjs && node tools/check-maps.mjs",
     "check-maps": "node tools/check-maps.mjs",
     "test:play": "node tools/autoplay-headless.mjs",
+    "test:features": "node tools/test-features.mjs",
     "convert-music": "node tools/convert-music.mjs"
   },
   "dependencies": {
