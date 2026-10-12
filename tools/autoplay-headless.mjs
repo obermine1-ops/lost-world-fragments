@@ -22,7 +22,7 @@ const result = await page.evaluate((s) => window.autoplay.run({ speed: s }), spe
 clearInterval(timer);
 await browser.close();
 
-console.log(result.ok ? '✅ 최종 엔딩까지 완주' : '❌ 실패');
+console.log(result.ok ? '✅ 최종 엔딩 + 무지개 동굴까지 완주' : '❌ 실패');
 console.log(`실제 ${result.realSeconds}초, 봇 환산 ${result.estimatedBotSeconds}초, 화면 멈춤 ${result.stalledSeconds}초`);
 console.log(result.perRegion.join(' · '));
 console.log(result.log.slice(-4).join('\n'));

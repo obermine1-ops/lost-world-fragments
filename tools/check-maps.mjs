@@ -4,6 +4,12 @@
 import { readFileSync, readdirSync } from 'node:fs';
 
 const MAPS = readdirSync('public/maps').filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5));
+// 동물 친구는 한 번 데려오면 계속 따라다닌다 → 어느 지도에서든 만날 수 있는 동물이면 그 능력으로 여는 길(pet:*)은 열 수 있다고 본다.
+const PETS_ANYWHERE = new Set();
+for (const name of MAPS) {
+  const objs = JSON.parse(readFileSync(`public/maps/${name}.json`, 'utf8')).layers.find((l) => l.name === 'objects').objects;
+  for (const o of objs) if (o.name === 'pet') PETS_ANYWHERE.add(`pet:${o.properties?.find((p) => p.name === 'kind')?.value ?? 'raccoon'}`);
+}
 const T = 16;
 let failures = 0;
 
@@ -72,12 +78,12 @@ for (const name of MAPS) {
       const unlock = prop(b, 'unlock');
       if (unlock === 'dig') return !items.includes(`open:${id}`);
       if (unlock.startsWith('key:')) return !items.includes(unlock.slice(4));
-      if (unlock.startsWith('pet:')) return !items.includes(unlock);
+      if (unlock.startsWith('pet:')) return !items.includes(unlock) && !PETS_ANYWHERE.has(unlock);
       return true;
     });
   }
   const canBeforeRestore = reachable(closed);
-  for (const o of objects.filter((x) => ['gem', 'fragment', 'altar', 'pet', 'dig', 'house', 'firefly', 'perch'].includes(x.name))) {
+  for (const o of objects.filter((x) => ['gem', 'fragment', 'altar', 'pet', 'dig', 'house', 'firefly', 'perch', 'treasure'].includes(x.name))) {
     check(`${o.name} ${prop(o, 'reward') ?? prop(o, 'id') ?? ''} (${tileOf(o)})`, canBeforeRestore(o));
   }
   const stillClosed = closed.filter((id) => !restoreGates.includes(id));

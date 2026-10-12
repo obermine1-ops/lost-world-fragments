@@ -53,6 +53,23 @@ const AMBIENCE: Record<Season, {
   winter: { texture: 'amb-snow', lifespan: 7000, speedX: { min: -6, max: 6 }, speedY: { min: 8, max: 18 }, spin: 0, scale: [0.7, 1.3], alpha: 0.95, tint: [0xa9c4e4, 0xc3d8ef, 0x93b4dc], frequency: 70 },
 };
 
+// 무지개 동굴(엔딩 뒤 비밀 장소)의 빛 조각 두 개 — 희귀 아이템이 아니라 동굴 진행용
+const SHARDS: Record<string, { name: string; gem: string; tint: number }> = {
+  'rainbow-a': { name: '노을빛 조각', gem: 'gem-red', tint: 0xffb38a },
+  'rainbow-b': { name: '하늘빛 조각', gem: 'gem-purple', tint: 0x9ae6ff },
+};
+export const CAVE_DONE = 'cave-treasure'; // 받침돌에 조각을 올리면 opened에 남는다
+const MSG_TREASURE_EMPTY = (n: number) => `받침돌에 빈 홈이 두 개 있다… (${n}/2)\n동굴 어딘가의 빛 조각을 찾아오자`;
+const MSG_CAVE_GIFT = (gift: string) => `새 가구를 얻었다: ${gift}\n(봄 들판의 나의 집에 놓을 수 있다)`;
+const CAVE_ENDING = [
+  '동굴 가장 깊은 곳에서, 일곱 빛깔이 피어올랐다.',
+  '너구리, 개구리, 앵무새, 햄스터.',
+  '혼자였다면 한 걸음도 오지 못했을 길이었다.',
+  '잃어버린 줄 알았던 세계는, 처음부터 친구들과 함께 있었다.',
+];
+
+const RAINBOW = [0xff8a8a, 0xffc27a, 0xfff07a, 0x9cf08a, 0x8ad8ff, 0xb59cff]; // 무지개 동굴의 빛
+
 // 지도 물체에 붙은 사용자 정의 값 (예: 길목의 도착 지도 이름)
 function prop(obj: Phaser.Types.Tilemaps.TiledObject, name: string): string | undefined {
   return (obj.properties as { name: string; value: string }[] | undefined)?.find((p) => p.name === name)?.value;
@@ -178,6 +195,18 @@ export class GameScene extends Phaser.Scene {
     const start = (data.spawn === 'travel' ? travelSpot() : data.spawn && spot(data.spawn)) ||
       (state.x !== undefined && state.y !== undefined ? { x: state.x, y: state.y } : undefined) ||
       spot('start') || { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
+    // 저장된 자리가 (지도가 바뀌어) 막힌 칸이면 가장 가까운 빈 칸으로 옮긴다. 발밑은 그림 가운데보다 5px 아래.
+    const feetTile = this.nav.tileOf({ x: start.x, y: start.y + 5 });
+    if (!this.nav.walkable(feetTile.x, feetTile.y)) {
+      search: for (let r = 1; r <= 8; r++)
+        for (let dy = -r; dy <= r; dy++)
+          for (let dx = -r; dx <= r; dx++) {
+            if (!this.nav.walkable(feetTile.x + dx, feetTile.y + dy)) continue;
+            const c = this.nav.center({ x: feetTile.x + dx, y: feetTile.y + dy });
+            Object.assign(start, { x: c.x, y: c.y - 5 });
+            break search;
+          }
+    }
     this.player = this.add.sprite(start.x, start.y, 'hero', 0);
     this.world.add(this.player);
     this.playerAnim = new ActorAnimator(this.player, 'hero');
@@ -203,8 +232,9 @@ export class GameScene extends Phaser.Scene {
     };
     follow(cam);
     cam.ignore([this.glow, this.ui]);
-    this.color = new WorldColor(this, cam, state.restored.includes(state.map));
+    this.color = new WorldColor(this, cam, state.restored.includes(state.map) || !this.region);
     if (this.region && state.restored.includes(state.map)) this.startAmbience(this.region.season, false);
+    if (!this.region && state.opened.includes(CAVE_DONE)) this.startAmbience('summer', false, RAINBOW);
 
     const glowCam = this.cameras.add(0, 0, width, height);
     follow(glowCam);
@@ -332,6 +362,7 @@ export class GameScene extends Phaser.Scene {
       }
       // 나의 집 문 앞: 서면 들어간다.
       if (o.name === 'house') this.addSpot(o.x!, o.y!, TOUCH_REACH, () => this.enterHouse());
+      if (o.name === 'treasure') this.placeTreasure(o.x!, o.y!);
       // 지역 길목: 들어서면 화면이 어두워졌다가 다음 지역의 길목에서 나타난다.
       if (o.name === 'exit') {
         const zone = this.add.zone(o.x!, o.y!, o.width!, o.height!).setOrigin(0);
@@ -706,8 +737,10 @@ export class GameScene extends Phaser.Scene {
   private placePerch(x: number, y: number, tx: number, ty: number, id: string, reward: string, kind: PetKind) {
     const region = this.region;
     const isGem = reward === 'gem' && region;
-    const icon = this.add.image(tx, ty, isGem ? `gem-${region.gem}` : `item-${reward}`).setDepth(DEPTH.above);
+    const shard = SHARDS[reward];
+    const icon = this.add.image(tx, ty, isGem ? `gem-${region.gem}` : shard ? shard.gem : `item-${reward}`).setDepth(DEPTH.above);
     if (isGem && region.gemTint) icon.setTint(region.gemTint);
+    if (shard) icon.setTint(shard.tint);
     this.glow.add(icon);
     this.tweens.add({ targets: icon, y: ty - 2, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     // 표시: 앵무새는 깃털, 햄스터는 작은 굴 입구
@@ -792,9 +825,11 @@ export class GameScene extends Phaser.Scene {
     const region = this.region;
     const isGem = reward === 'gem' && region;
     sfx(this, isGem ? 'gem' : 'pickup');
-    const texture = isGem ? `gem-${region.gem}` : `item-${reward}`;
+    const shard = SHARDS[reward];
+    const texture = isGem ? `gem-${region.gem}` : shard ? shard.gem : `item-${reward}`;
     const icon = this.add.image(x, y, texture).setDepth(DEPTH.above);
     if (isGem && region.gemTint) icon.setTint(region.gemTint);
+    if (shard) icon.setTint(shard.tint);
     this.glow.add(icon);
     this.tweens.add({
       targets: icon,
@@ -807,6 +842,9 @@ export class GameScene extends Phaser.Scene {
     if (isGem) {
       game.state.gems.push(region.key);
       this.showMessage(finder === '너구리가' ? `너구리가 ${region.gemName} 보석을 파냈다!` : `${finder} ${region.gemName} 보석을 가져왔다!`);
+    } else if (shard) {
+      game.state.items.push(reward);
+      this.showMessage(`${finder} ${withJosa(shard.name, '을', '를')}\n가져왔다! 빛 조각 ${Object.keys(SHARDS).filter((k) => game.state.items.includes(k)).length}/2`);
     } else {
       game.state.items.push(reward);
       this.showMessage(`${finder} ${withJosa(itemOf(reward)?.name ?? reward, '을', '를')}\n찾아냈다! (도감에 기록)`);
@@ -918,12 +956,56 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  // ── 무지개 동굴 받침돌 ──────────────────────────────────
+  private placeTreasure(x: number, y: number) {
+    const done = game.state.opened.includes(CAVE_DONE);
+    const stone = this.add.image(x, y, 'dungeon-sheet', done ? ALTAR_FILLED : ALTAR_EMPTY);
+    sortByY(stone);
+    this.glow.add(stone);
+    if (done) {
+      this.tweens.addCounter({ from: 0, to: 360, duration: 4000, repeat: -1, onUpdate: (t) => stone.setTint(Phaser.Display.Color.HSVToRGB(t.getValue()! / 360, 0.45, 1).color) });
+      return;
+    }
+    this.addSpot(x, y + 4, ALTAR_REACH, () => this.useTreasure(stone));
+  }
+
+  private useTreasure(stone: Phaser.GameObjects.Image) {
+    const s = game.state;
+    if (s.opened.includes(CAVE_DONE)) return;
+    const n = Object.keys(SHARDS).filter((k) => s.items.includes(k)).length;
+    if (n < 2) {
+      this.showMessage(MSG_TREASURE_EMPTY(n));
+      return;
+    }
+    this.busy = true;
+    this.stopMoving();
+    s.opened.push(CAVE_DONE);
+    this.savePosition();
+    sfx(this, 'restore', 0.7);
+    stone.setFrame(ALTAR_FILLED);
+    this.tweens.addCounter({ from: 0, to: 360, duration: 4000, repeat: -1, onUpdate: (t) => stone.setTint(Phaser.Display.Color.HSVToRGB(t.getValue()! / 360, 0.45, 1).color) });
+    // 무지개 빛이 번쩍이며 화면을 물들인다
+    RAINBOW.forEach((c, i) => this.time.delayedCall(i * 160, () => this.cameras.main.flash(220, (c >> 16) & 255, (c >> 8) & 255, c & 255)));
+    this.time.delayedCall(1400, () => {
+      this.startAmbience('summer', true, RAINBOW);
+      this.scene.pause();
+      this.showMemory({ lines: CAVE_ENDING }, () => {
+        this.scene.resume();
+        this.busy = false;
+        this.playRegionMusic();
+        this.updateHud();
+        const gift = furnitureFrom('cave').map((f) => f.name).join(', ');
+        this.showMessage(MSG_CAVE_GIFT(gift));
+      });
+    });
+  }
+
   // ── 계절의 공기 ─────────────────────────────────────────
   // 색을 되찾은 지역에만: 봄 꽃잎 · 여름 햇빛 반짝이 · 가을 낙엽 · 겨울 눈. 화면 안 아무 곳에서 생겨 살며시 나타났다 사라진다.
-  private startAmbience(season: Season, fadeIn: boolean) {
+  private startAmbience(season: Season, fadeIn: boolean, tint?: number[]) {
     this.makeAmbienceTextures();
     const cam = this.cameras.main;
-    const a = AMBIENCE[season];
+    const a = { ...AMBIENCE[season], ...(tint ? { tint } : {}) };
     const emitter = this.add.particles(0, 0, a.texture, {
       x: { onEmit: () => cam.worldView.x - 20 + Math.random() * (cam.worldView.width + 40) },
       y: { onEmit: () => cam.worldView.y - 20 + Math.random() * (cam.worldView.height + 40) },
@@ -1006,9 +1088,16 @@ export class GameScene extends Phaser.Scene {
   private guideTarget(): Point | string | undefined {
     const s = game.state;
     const r = this.region;
-    if (!r) return undefined;
     const objs = this.mapObjects;
     const center = (o: Phaser.Types.Tilemaps.TiledObject) => ({ x: o.x! + (o.width ?? 0) / 2, y: o.y! + (o.height ?? 0) / 2 });
+    if (!r) {
+      // 무지개 동굴: 아직 안 가져온 빛 조각 심부름 → 받침돌 (막힌 길은 showGuide가 여는 곳으로 돌려 안내)
+      if (s.opened.includes(CAVE_DONE)) return undefined;
+      const perch = objs.find((o) => o.name === 'perch' && !s.dug.includes(prop(o, 'id')!));
+      if (perch) return center(perch);
+      const box = objs.find((o) => o.name === 'treasure');
+      return box ? { x: box.x!, y: box.y! + 16 } : undefined;
+    }
     if (s.restored.includes(r.key)) {
       const next = REGIONS[REGIONS.indexOf(r) + 1];
       if (!next || s.restored.includes(next.key)) return '반딧불은 숨어 있어요.\n가까이 가면 반짝여요';
@@ -1193,7 +1282,11 @@ export class GameScene extends Phaser.Scene {
   private currentGoal() {
     const s = game.state;
     const r = this.region;
-    if (!r) return '';
+    if (!r) {
+      if (s.opened.includes(CAVE_DONE)) return '';
+      const n = Object.keys(SHARDS).filter((k) => s.items.includes(k)).length;
+      return n < 2 ? `목표: 동굴 깊은 곳의 빛 조각 찾기 (${n}/2)` : '목표: 맨 안쪽 받침돌에 빛 조각 올리기';
+    }
     if (s.restored.includes(r.key)) {
       const next = REGIONS[REGIONS.indexOf(r) + 1];
       const ff = s.fireflies.filter((f) => f.startsWith(`${r.key}-`)).length;
@@ -1216,7 +1309,10 @@ export class GameScene extends Phaser.Scene {
 
   private playRegionMusic() {
     const r = this.region;
-    if (!r) return;
+    if (!r) {
+      music(this.game, game.state.opened.includes(CAVE_DONE) ? 'credits' : 'ruins'); // 무지개 동굴
+      return;
+    }
     const restored = game.state.restored.includes(r.key);
     if (r.season === 'summer') music(this.game, restored ? 'summer' : 'sea');
     else if (r.season === 'autumn') music(this.game, restored ? 'fall' : 'fall-gray');
@@ -1281,6 +1377,14 @@ export class GameScene extends Phaser.Scene {
 
   private updateHud() {
     const s = game.state;
+    if (!this.region) {
+      // 무지개 동굴: 빛 조각 개수
+      const n = Object.keys(SHARDS).filter((k) => s.items.includes(k)).length;
+      this.hudText.setText(`◇ 무지개 동굴   빛 조각 ${n}/2`);
+      const goal = this.currentGoal();
+      this.goalText.setText(goal.startsWith('목표') ? `${goal}  ›` : goal).setVisible(goal !== '');
+      return;
+    }
     const season = this.region?.season ?? 'spring';
     const keys = regionsOf(season).map((r) => r.key);
     const count = (list: string[]) => list.filter((k) => keys.includes(k)).length;

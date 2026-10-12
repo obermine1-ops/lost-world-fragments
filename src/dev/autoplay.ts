@@ -232,7 +232,43 @@ export function installAutoplay(game: Phaser.Game) {
     await waitFor(() => s.map === next, 10000, `${next}로 이동`);
   }
 
-  async function run(options: { speed?: number } = {}) {
+  // 엔딩 뒤 무지개 동굴: 이어하기(봄 들판 집 앞) → 왼쪽 아래 입구 → 돌무더기 → 연잎 다리 → 빛 조각 둘 → 받침돌
+  async function playCave() {
+    game.scene.getScenes(true).forEach((s) => s.sys.settings.key !== 'Audio' && game.scene.stop(s.sys.settings.key));
+    game.scene.start('Game');
+    await waitGame();
+    const gate = g().mapObjects.find((o: Obj) => o.name === 'exit' && prop(o, 'to') === 'cave-n');
+    if (!gate) throw new Error('동굴 입구 없음');
+    await walkTo(gate.x! + gate.width! / 2, gate.y! + gate.height! / 2, '동굴 입구', 30, false);
+    await waitFor(() => progress.state.map === 'cave-n', 15000, '동굴로 들어감');
+    await waitGame();
+    note('▶ cave-n 도착');
+    marks.push({ label: 'cave-n', at: performance.now() });
+    const s = progress.state;
+    const of = (name: string): Obj[] => g().mapObjects.filter((o: Obj) => o.name === name);
+    for (const o of of('dig').filter((d) => !s.dug.includes(prop(d, 'id')!))) {
+      await walkTo(o.x!, o.y!, `흙더미(${prop(o, 'reward')})`, 22);
+      await waitFor(() => s.dug.includes(prop(o, 'id')!) && !g().busy, 20000, '파기');
+      note(`흙더미: ${prop(o, 'reward')}`);
+    }
+    for (const o of of('barrier').filter((b) => prop(b, 'look') === 'lilypad' && !s.opened.includes(prop(b, 'id')!))) {
+      await walkTo(o.x! + o.width! / 2, o.y! - 10, '연잎 다리 물가', 20);
+      await waitFor(() => s.opened.includes(prop(o, 'id')!) && !g().busy, 15000, '연잎 다리');
+      note('연잎 다리 생김');
+    }
+    for (const o of of('perch').filter((p) => !s.dug.includes(prop(p, 'id')!))) {
+      await walkTo(o.x!, o.y!, `심부름(${prop(o, 'reward')})`, 22);
+      await waitFor(() => s.dug.includes(prop(o, 'id')!) && !g().busy, 20000, '심부름');
+      note(`심부름: ${prop(o, 'reward')}`);
+    }
+    const box = of('treasure')[0];
+    await walkTo(box.x!, box.y! + 16, '받침돌', 20, false);
+    await finishMemory();
+    await waitFor(() => s.opened.includes('cave-treasure') && active('Game') && !g().busy, 15000, '동굴 마무리');
+    note('✅ 무지개 동굴 완료');
+  }
+
+  async function run(options: { speed?: number; cave?: boolean } = {}) {
     speed = options.speed ?? 3;
     t0 = performance.now();
     stalledSeconds = 0;
@@ -269,6 +305,7 @@ export function installAutoplay(game: Phaser.Game) {
       }
       await waitFor(() => active('End'), 20000, '마지막 요약 화면');
       note('✅ 겨울(최종) 엔딩까지 완주');
+      if (options.cave !== false) await playCave();
       return report(true);
     } catch (e) {
       note(`❌ ${(e as Error).message}`);

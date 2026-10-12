@@ -44,7 +44,7 @@ export function statsOf(state: GameState, key: string) {
 }
 
 export const FIRST_MAP = 'meadow-a';
-export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j', 'snow-k', 'lake-l', 'peak-m'] as const;
+export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j', 'snow-k', 'lake-l', 'peak-m', 'cave-n'] as const;
 
 export function newGame(): GameState {
   return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, parrot: false, hamster: false, dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0, tips: [], stats: {} };

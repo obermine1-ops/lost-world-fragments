@@ -352,12 +352,12 @@ function meadowA() {
   m.area('pond', 3, 19, 7, 5); // 연못
   m.area('dirt', 20, 7, 6, 4); // 오른쪽 위 공터
 
-  m.border('green', { top: [12, 17], bottom: [12, 17] });
+  m.border('green', { top: [12, 17], bottom: [12, 17], left: [43, 46] });
   const trees = [
     ['cherry', 10, 6], ['cherry', 17, 14], ['cherry', 9, 28], ['cherry', 18, 33], ['cherry', 10, 41],
     ['cherry', 22, 24], ['cherry', 5, 12], ['cherry', 24, 40], ['green', 4, 34], ['green', 6, 37],
     ['green', 21, 18], ['green', 25, 20], ['green', 3, 8], ['green', 7, 15], ['green', 22, 44],
-    ['green', 4, 44], ['cherry', 19, 4], ['green', 25, 13],
+    ['cherry', 19, 4], ['green', 25, 13],
   ];
   for (const [kind, x, y] of trees) m.tree(kind, x, y);
 
@@ -376,8 +376,12 @@ function meadowA() {
   m.point('house', 18, 43);
   m.point('from-house', 18, 45);
   m.dig(25, 30, 'pan-flute');
+  // 왼쪽 아래 무지개 동굴 입구: 네 계절을 모두 되찾으면(별빛 언덕 복원) 시든 나무가 사라진다.
+  m.exit(0, 44, 1, 2, 'cave-n', 'from-meadow-a');
+  m.barrier(1, 44, 2, 2, { id: 'cave-gate', unlock: 'restore:peak-m', look: 'dead-tree' });
+  m.point('from-cave-n', 4, 45);
 
-  const nearPath = (x, y) => x >= 12 && x <= 16;
+  const nearPath = (x, y) => (x >= 12 && x <= 16) || (x <= 8 && y >= 42 && y <= 47);
   m.scatter(BUSHES, 14, true, nearPath);
   m.scatter(ROCKS, 6, true, nearPath);
   m.scatter(FLOWERS, 90, false);
@@ -823,8 +827,45 @@ function peakM() {
   return m;
 }
 
+// ══ 엔딩 뒤 ═══════════════════════════════════════════════
+
+// ── 무지개 동굴 N ─────────────────────────────────────────
+// 네 계절을 모두 되찾은 뒤 봄 들판 왼쪽 아래에서 열리는 마지막 비밀 장소. 위에서 아래로 내려가며
+// 너구리(돌무더기) → 개구리(지하 호수 연잎 다리) → 앵무새(바위 턱 위)·햄스터(얼음 굴 속) 빛 조각 → 맨 안쪽 받침돌.
+function caveN() {
+  const W = 24;
+  const H = 36;
+  const m = new MapBuilder('cave-n', '무지개 동굴', W, H, 20261050, { base: 'earth', dark: true });
+
+  m.area('mud', 10, 0, 4, 12); // 입구 통로
+  m.area('pond', 1, 13, 22, 5); // 지하 호수 (가로질러 막는다)
+  m.area('cliff', 3, 22, 6, 5); // 바위 턱 (앵무새)
+  m.pocket(15, 22, 6, 5); // 얼음 굴 (햄스터)
+  m.area('mud', 9, 29, 6, 5); // 받침돌 앞 광장
+  m.border('pine', { top: [10, 13] });
+
+  m.point('from-meadow-a', 11, 3);
+  m.exit(10, 0, 4, 1, 'meadow-a', 'from-cave-n');
+  m.rubbleWall(2, 9, 8);
+  m.rubbleWall(14, 21, 8);
+  m.rubbleWall(2, 9, 9);
+  m.rubbleWall(14, 21, 9);
+  m.barrier(10, 8, 4, 2, { id: 'cave-rubble', unlock: 'dig', look: 'rubble' });
+  m.dig(11, 6, 'open:cave-rubble');
+  m.barrier(11, 13, 2, 5, { id: 'cave-bridge', unlock: 'pet:frog', look: 'lilypad' });
+  m.perch(6, 28, 6, 24, 'rainbow-a', 'parrot');
+  m.perch(18, 28, 18, 24, 'rainbow-b', 'hamster');
+  m.point('treasure', 12, 31);
+  m.block(12, 31);
+
+  const keepClear = (x, y) => (x >= 9 && x <= 14) || y === 12 || (y >= 27 && y <= 29);
+  m.scatter(ROCKS, 10, true, keepClear);
+  m.paintGround();
+  return m;
+}
+
 mkdirSync('public/maps', { recursive: true });
-for (const map of [meadowA(), forestB(), hillC(), ruinsD(), beachE(), villageF(), islandG(), mapleH(), harvestI(), towerJ(), snowK(), lakeL(), peakM()]) {
+for (const map of [meadowA(), forestB(), hillC(), ruinsD(), beachE(), villageF(), islandG(), mapleH(), harvestI(), towerJ(), snowK(), lakeL(), peakM(), caveN()]) {
   writeFileSync(`public/maps/${map.name}.json`, JSON.stringify(map.toTiled()));
   console.log(`public/maps/${map.name}.json (${map.width}×${map.height})`);
 }
