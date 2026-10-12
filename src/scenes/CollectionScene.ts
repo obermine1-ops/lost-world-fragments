@@ -1,14 +1,15 @@
 import Phaser from 'phaser';
 import { FONT, addButton, fadeIn } from '../ui';
-import { game } from '../state';
-import { SEASONS, firefliesOf, regionsOf, type Season } from '../regions';
+import { formatPlayTime, game, playMs } from '../state';
+import { REGIONS, SEASONS, firefliesOf, regionsOf, type Season } from '../regions';
+import { mapTitle } from './WorldMapScene';
 import { RARE_ITEMS } from '../items';
 import type { MemoryData } from './MemoryScene';
 import { isComplete } from '../furniture';
 
 export interface CollectionData {
   onClose: () => void;
-  season?: Season;
+  season?: Season | 'stats'; // 'stats' = 플레이 기록 탭
 }
 
 const SLOT = 56;
@@ -28,21 +29,33 @@ export class CollectionScene extends Phaser.Scene {
     const s = game.state;
     fadeIn(this);
     this.add.rectangle(0, 0, width, height, 0x14121f, 0.96).setOrigin(0).setInteractive();
-    const season = data.season ?? 'spring';
-    const regions = regionsOf(season);
-    const items = RARE_ITEMS.filter((i) => i.season === season);
-    this.add.text(width / 2, 34, '수집 도감', { fontFamily: FONT, fontSize: '22px', color: '#ffffff' }).setOrigin(0.5);
+    const page = data.season ?? 'spring';
+    this.add.text(width / 2, 34, page === 'stats' ? '플레이 기록' : '수집 도감', { fontFamily: FONT, fontSize: '22px', color: '#ffffff' }).setOrigin(0.5);
     if (isComplete(s))
       this.add.text(width - 20, 34, '★ 완전 수집', { fontFamily: FONT, fontSize: '12px', color: '#ffb3e6' }).setOrigin(1, 0.5);
 
-    // 계절 탭 (봄 / 여름)
-    SEASONS.forEach((sea, i) => {
-      const x = width / 2 + (i - (SEASONS.length - 1) / 2) * 90;
-      const tab = addButton(this, x, 72, sea.name, () => {
-        if (sea.key !== season) this.scene.restart({ ...data, season: sea.key });
-      }, 80, 30);
-      if (sea.key !== season) tab.setAlpha(0.5);
+    // 탭: 봄 / 여름 / 가을 / 겨울 / 기록
+    const tabs: { key: Season | 'stats'; name: string }[] = [...SEASONS.map((sea) => ({ key: sea.key, name: sea.name })), { key: 'stats', name: '기록' }];
+    tabs.forEach((t, i) => {
+      const x = width / 2 + (i - (tabs.length - 1) / 2) * 68;
+      const tab = addButton(this, x, 72, t.name, () => {
+        if (t.key !== page) this.scene.restart({ ...data, season: t.key });
+      }, 62, 30);
+      if (t.key !== page) tab.setAlpha(0.5);
     });
+    const close = () =>
+      addButton(this, width / 2, height - 44, '닫기', () => {
+        this.cameras.main.fadeOut(250, 0, 0, 0);
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => data.onClose());
+      }, 140, 44);
+    if (page === 'stats') {
+      this.showStats();
+      close();
+      return;
+    }
+    const season = page;
+    const regions = regionsOf(season);
+    const items = RARE_ITEMS.filter((i) => i.season === season);
 
     // 세로 배치: 보석(1줄) → 희귀 아이템 → 기억(1줄) → 설명 → 닫기
     let y = 100;
@@ -93,10 +106,48 @@ export class CollectionScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0);
 
-    addButton(this, width / 2, height - 44, '닫기', () => {
-      this.cameras.main.fadeOut(250, 0, 0, 0);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => data.onClose());
-    }, 140, 44);
+    close();
+  }
+
+  // 플레이 기록: 지역마다 머문 시간·길 안내 누른 횟수·막힌 횟수. 지인 테스트 때 이 화면을 캡처해 받는다.
+  private showStats() {
+    const { width } = this.scale;
+    const s = game.state;
+    const col = { name: 24, time: 196, guide: 266, nudge: 326 };
+    const head = { fontFamily: FONT, fontSize: '11px', color: '#8f86c9' };
+    let y = 104;
+    this.add.text(col.name, y, '지역', head);
+    this.add.text(col.time, y, '시간', head).setOrigin(0.5, 0);
+    this.add.text(col.guide, y, '길 안내', head).setOrigin(0.5, 0);
+    this.add.text(col.nudge, y, '막힘', head).setOrigin(0.5, 0);
+    y += 20;
+    const row = { fontFamily: FONT, fontSize: '12px', color: '#ffffff' };
+    for (const r of REGIONS) {
+      const st = s.stats[r.key];
+      const visited = !!st;
+      const done = s.restored.includes(r.key);
+      const style = { ...row, color: visited ? (done ? '#ffffff' : '#ffe9a8') : '#5a5470' };
+      this.add.text(col.name, y, `${done ? '✓' : '·'} ${visited ? mapTitle(this, r.key) : '???'}`, style);
+      if (visited) {
+        this.add.text(col.time, y, formatPlayTime(st.ms), style).setOrigin(0.5, 0);
+        this.add.text(col.guide, y, String(st.guides), style).setOrigin(0.5, 0);
+        this.add.text(col.nudge, y, String(st.nudges), style).setOrigin(0.5, 0);
+      }
+      y += 22;
+    }
+    const house = s.stats['house'];
+    const total = playMs(s, Object.keys(s.stats));
+    y += 10;
+    this.add.text(col.name, y, `합계 ${formatPlayTime(total)}${house ? ` (그중 나의 집 ${formatPlayTime(house.ms)})` : ''}`, { ...row, color: '#d8c9a3' });
+    this.add
+      .text(width / 2, y + 34, '지인 테스트 중이라면 이 화면을 캡처해서 보내 주세요.\n어디서 오래 머물고 막혔는지 알 수 있어요.', {
+        fontFamily: FONT,
+        fontSize: '11px',
+        color: '#a49dc0',
+        align: 'center',
+        lineSpacing: 4,
+      })
+      .setOrigin(0.5, 0);
   }
 
   private slotX(i: number, count: number) {

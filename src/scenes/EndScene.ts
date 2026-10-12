@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { FONT, addButton, fadeIn, fadeTo } from '../ui';
-import { game } from '../state';
+import { formatPlayTime, game, playMs } from '../state';
 import { SEASONS, regionsOf, seasonOf, type Season } from '../regions';
 import { RARE_ITEMS } from '../items';
 import { music } from '../sound';
@@ -42,6 +42,7 @@ export class EndScene extends Phaser.Scene {
       `되찾은 기억  ${count(s.restored)} / ${keys.length}`,
       `모은 보석  ${count(s.gems)} / ${keys.length}`,
       `희귀 아이템  ${items.filter((i) => s.items.includes(i.id)).length} / ${items.length}`,
+      `이번 계절 플레이  ${formatPlayTime(playMs(s, keys))}`,
     ];
     this.add
       .text(width / 2, height * 0.43, lines.join('\n'), {
@@ -57,7 +58,7 @@ export class EndScene extends Phaser.Scene {
     const nextDone = next && regionsOf(next.season).every((r) => s.restored.includes(r.key));
     if (next && !nextDone) {
       this.add
-        .text(width / 2, height * 0.62, `${seasonOf(next.season).name}이 기다리는 곳으로 가는 길이 열렸다`, {
+        .text(width / 2, height * 0.648, `${seasonOf(next.season).name}이 기다리는 곳으로 가는 길이 열렸다`, {
           fontFamily: FONT,
           fontSize: '13px',
           color: '#8f86c9',
@@ -85,7 +86,7 @@ export class EndScene extends Phaser.Scene {
         saveGame(s);
       }
       this.add
-        .text(width / 2, height * 0.64, '✿  ☀  ✾  ❄\n모든 계절을 되찾았다', {
+        .text(width / 2, height * 0.66, '✿  ☀  ✾  ❄\n모든 계절을 되찾았다', {
           fontFamily: FONT,
           fontSize: '16px',
           color: '#ffe9a8',

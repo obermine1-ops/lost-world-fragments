@@ -6,7 +6,7 @@ import type { PuzzleData } from './PuzzleScene';
 import type { MemoryData } from './MemoryScene';
 import { ActorAnimator } from '../actor';
 import { NavGrid, type Point } from '../pathfinding';
-import { game } from '../state';
+import { game, statsOf } from '../state';
 import { saveGame } from '../save';
 import { FIREFLIES_PER_REGION, REGIONS, firefliesOf, regionOf, regionsOf, seasonOf, type Region } from '../regions';
 import { itemOf, withJosa } from '../items';
@@ -253,6 +253,8 @@ export class GameScene extends Phaser.Scene {
     }
     this.checkSpots(body.center);
     this.nudgeIfStuck();
+    // 지역에 머문 시간 (앱을 내린 동안은 게임이 멈추므로 빠진다. 다시 열 때 한 번에 크게 뛰는 시간은 자른다)
+    if (!this.leaving) statsOf(game.state, game.state.map).ms += Math.min(delta, 1000);
 
     const waypoint = this.path[0];
     if (!waypoint) return;
@@ -1060,6 +1062,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.guiding = true;
+    statsOf(game.state, game.state.map).guides++;
     sfx(this, 'secret', 0.3);
     const STEP_MS = 45;
     steps.forEach((p, i) => {
@@ -1092,6 +1095,7 @@ export class GameScene extends Phaser.Scene {
     if (this.time.now - this.lastProgressAt < STUCK_NUDGE_MS) return;
     this.lastProgressAt = this.time.now;
     if (!this.goalText.visible) return;
+    statsOf(game.state, game.state.map).nudges++;
     this.tweens.add({ targets: this.goalText, x: { from: 4, to: 12 }, duration: 70, yoyo: true, repeat: 4, onComplete: () => this.goalText.setX(8) });
     this.goalText.setColor('#ffffff');
     this.time.delayedCall(1200, () => this.goalText.setColor('#ffe9a8'));

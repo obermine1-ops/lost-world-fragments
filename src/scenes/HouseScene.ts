@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { FONT, addButton, fadeIn, fadeTo } from '../ui';
-import { game } from '../state';
+import { game, statsOf } from '../state';
 import { saveGame } from '../save';
 import { FLOORS, WALLPAPERS, ownedPlaceables, unlockedStyles, type Placeable } from '../furniture';
 import { music, sfx } from '../sound';
@@ -34,6 +34,11 @@ export class HouseScene extends Phaser.Scene {
 
   constructor() {
     super('House');
+  }
+
+  // 집에서 보낸 시간 (플레이 기록)
+  update(_time: number, delta: number) {
+    statsOf(game.state, 'house').ms += Math.min(delta, 1000);
   }
 
   create() {

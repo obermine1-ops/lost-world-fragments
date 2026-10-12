@@ -4,8 +4,8 @@ import { MAPS, newGame, type GameState } from './state';
 // 저장 형식이 바뀌면 VERSION을 올리고 migrate에서 옛 기록을 새 형식으로 고친다.
 const KEY = 'lost-world-fragments/save';
 // v1: 색 복원이 세상 전체 하나(restored: boolean) / v2: 지역별 복원 목록 + 보석 / v3: 너구리·흙더미·희귀 아이템
-// v4: 열린 길(유적의 돌무더기·잠긴 문) / v5: 개구리(여름) / v6: 나의 집 배치 / v7: 숨은 반딧불 / v8: 앵무새(가을) / v9: 집 벽지·바닥 / v10: 햄스터(겨울) / v11: 한 번만 나오는 안내
-const VERSION = 11;
+// v4: 열린 길(유적의 돌무더기·잠긴 문) / v5: 개구리(여름) / v6: 나의 집 배치 / v7: 숨은 반딧불 / v8: 앵무새(가을) / v9: 집 벽지·바닥 / v10: 햄스터(겨울) / v11: 한 번만 나오는 안내 / v12: 플레이 기록
+const VERSION = 12;
 
 interface SaveFile {
   version: number;
@@ -97,6 +97,7 @@ function migrate(file: { version?: number; state?: Record<string, unknown> }): G
     opened: strings(s.opened),
     fireflies: strings(s.fireflies),
     tips: strings(s.tips),
+    stats: readStats(s.stats),
     wallpaper: typeof s.wallpaper === 'number' ? s.wallpaper : 0,
     floor: typeof s.floor === 'number' ? s.floor : 0,
     house: Array.isArray(s.house)
@@ -107,4 +108,15 @@ function migrate(file: { version?: number; state?: Record<string, unknown> }): G
         )
       : [],
   };
+}
+
+function readStats(v: unknown): GameState['stats'] {
+  if (typeof v !== 'object' || v === null) return {};
+  const out: GameState['stats'] = {};
+  for (const [key, raw] of Object.entries(v as Record<string, unknown>)) {
+    const r = raw as Record<string, unknown>;
+    const num = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
+    if (typeof r === 'object' && r !== null) out[key] = { ms: num(r.ms), guides: num(r.guides), nudges: num(r.nudges) };
+  }
+  return out;
 }

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { FONT, fadeIn } from '../ui';
 import { sfx } from '../sound';
+import { game, statsOf } from '../state';
 
 export interface PuzzleData {
   // 짝의 개수. 카드 수는 그 두 배 (Sprint 1은 2쌍 = 4장, Sprint 3에서 늘어난다)
@@ -33,6 +34,11 @@ export class PuzzleScene extends Phaser.Scene {
 
   constructor() {
     super('Puzzle');
+  }
+
+  // 퍼즐 푸는 시간도 그 지역의 플레이 시간 (지인 테스트용 기록)
+  update(_time: number, delta: number) {
+    statsOf(game.state, game.state.map).ms += Math.min(delta, 1000);
   }
 
   create(data: PuzzleData) {

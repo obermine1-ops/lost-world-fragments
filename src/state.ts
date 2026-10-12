@@ -28,13 +28,38 @@ export interface GameState {
   floor: number;
   // 이미 본 한 번만 나오는 안내 (goal·map·collection)
   tips: string[];
+  // 지역별 플레이 기록 (지인 테스트용): 머문 시간(ms) · 길 안내 누른 횟수 · 오래 막혀 목표가 흔들린 횟수
+  stats: Record<string, RegionStats>;
+}
+
+export interface RegionStats {
+  ms: number;
+  guides: number;
+  nudges: number;
+}
+
+// 지역 기록을 꺼낸다 (없으면 새로 만든다)
+export function statsOf(state: GameState, key: string) {
+  return (state.stats[key] ??= { ms: 0, guides: 0, nudges: 0 });
 }
 
 export const FIRST_MAP = 'meadow-a';
 export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j', 'snow-k', 'lake-l', 'peak-m'] as const;
 
 export function newGame(): GameState {
-  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, parrot: false, hamster: false, dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0, tips: [] };
+  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, parrot: false, hamster: false, dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0, tips: [], stats: {} };
 }
 
 export const game = { state: newGame() };
+
+// 여러 지역의 머문 시간 합 (분, 반올림). 1분이 안 되면 0이 아니라 1분 미만으로 보이게 호출하는 쪽에서 처리.
+export function playMs(state: GameState, keys: string[]) {
+  return keys.reduce((sum, k) => sum + (state.stats[k]?.ms ?? 0), 0);
+}
+
+export function formatPlayTime(ms: number) {
+  const min = Math.round(ms / 60000);
+  if (min < 1) return '1분 미만';
+  if (min < 60) return `${min}분`;
+  return `${Math.floor(min / 60)}시간 ${min % 60}분`;
+}
