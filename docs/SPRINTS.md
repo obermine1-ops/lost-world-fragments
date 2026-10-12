@@ -214,3 +214,9 @@
 # v11 (계절 카드 그림) — PRD-v11.md
 ## Sprint 30: 계절별 카드 앞면 그림
 - 상태: **완료** (2026-10-12) — docs/sprint-30/STORIES.md
+
+---
+
+# v12 (계절의 공기) — PRD-v12.md
+## Sprint 31: 되찾은 지역의 계절 입자
+- 상태: **완료** (2026-10-12) — docs/sprint-31/STORIES.md
