@@ -119,3 +119,6 @@
 
 ## 2026-10-13 v25 (색이 돌아오는 순간)
 - 캡처 2번. `npm run test:features` 11/11, `npm run test:play` ✅ 350초.
+
+## 2026-10-13 v26 (계절 시작 카드)
+- 캡처 확인. `npm run test:features` 11/11, `npm run test:play` ✅ 350초.

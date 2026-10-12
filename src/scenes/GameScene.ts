@@ -244,7 +244,11 @@ export class GameScene extends Phaser.Scene {
     const mapProps = map.properties as { name: string; value: string | boolean }[];
     const title = mapProps.find((p) => p.name === 'title')?.value as string | undefined;
     if (mapProps.find((p) => p.name === 'dark')?.value) this.addDarkness(width, height);
-    if (title) this.time.delayedCall(300, () => this.showMessage(title));
+    // 새 계절의 첫 지역에 처음 들어서면 계절 카드부터 (지역 이름은 그 뒤에)
+    const r0 = this.region;
+    const seasonStart = r0 && regionsOf(r0.season)[0] === r0 && !state.stats[state.map] && !state.restored.includes(state.map);
+    if (seasonStart) this.showSeasonCard(r0.season);
+    if (title) this.time.delayedCall(seasonStart ? 3000 : 300, () => this.showMessage(title));
     // 예전 기록으로 돌아온 사람에게 한 번만: 그동안 새로 생긴 것 (새로 시작한 사람은 진행하며 하나씩 안내받으므로 조용히 넘김)
     if (!state.tips.includes(NEWS_TIP)) {
       state.tips.push(NEWS_TIP);
@@ -976,6 +980,24 @@ export class GameScene extends Phaser.Scene {
         });
       });
     });
+  }
+
+  // 계절 카드: 화면 가운데 띠 위에 "두 번째 계절 · 여름" — 장 넘김처럼 떴다가 사라진다
+  private showSeasonCard(season: Season) {
+    const { width, height } = this.scale;
+    const ordinal = { spring: '첫', summer: '두', autumn: '세', winter: '네' }[season];
+    const icon = { spring: '✿', summer: '☀', autumn: '✾', winter: '❄' }[season];
+    const band = this.add.rectangle(width / 2, height * 0.42, width, 120, 0x0e0c16, 0.7);
+    const small = this.add.text(width / 2, height * 0.42 - 30, `${ordinal} 번째 계절`, { fontFamily: FONT, fontSize: '14px', color: '#d8c9a3' }).setOrigin(0.5);
+    const big = this.add.text(width / 2, height * 0.42 + 10, `${icon}  ${seasonOf(season).name}  ${icon}`, { fontFamily: FONT, fontSize: '34px', color: '#ffffff' }).setOrigin(0.5);
+    const parts = [band, small, big];
+    for (const p of parts) {
+      this.ui.add(p);
+      p.setAlpha(0);
+    }
+    this.tweens.add({ targets: parts, alpha: 1, duration: 600, delay: 300 });
+    this.tweens.add({ targets: big, scale: { from: 0.9, to: 1 }, duration: 900, delay: 300, ease: 'Sine.easeOut' });
+    this.tweens.add({ targets: parts, alpha: 0, duration: 700, delay: 2300, onComplete: () => parts.forEach((p) => p.destroy()) });
   }
 
   // 새 소식 판: 누르면 닫힌다 (그동안은 걷지 않게 입력을 막는다)
