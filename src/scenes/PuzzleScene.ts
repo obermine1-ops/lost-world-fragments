@@ -26,8 +26,13 @@ const FLIP_MS = 120;
 const MISMATCH_MS = 700;
 const CARD_GAP = 16;
 
-// 카드 앞면 그림: 봄의 꽃과 수정 (TilesetNature의 낱개 그림을 3배로)
-const SYMBOLS = [264, 267, 270, 266, 338, 336];
+// 카드 앞면 그림: 계절마다 그 계절다운 것 6가지 (TilesetNature 번호). 모양·색이 서로 헷갈리지 않게 골랐다.
+const SYMBOLS: Record<Season, number[]> = {
+  spring: [264, 267, 270, 266, 268, 338], // 해바라기·빨간 꽃·데이지·클로버·잎·보라 수정
+  summer: [361, 337, 296, 203, 226, 363], // 푸른 보석·푸른 수정·바다 돌·대나무·덤불·초록 보석
+  autumn: [276, 336, 324, 318, 412, 360], // 낙엽·주황 수정·그루터기·주황 통·열매 덤불·주황 보석
+  winter: [293, 297, 337, 362, 388, 341], // 눈덩이·눈 덮인 수정·푸른 수정·보라 보석·열매 덤불 둘
+};
 
 interface Card {
   container: Phaser.GameObjects.Container;
@@ -45,6 +50,7 @@ export class PuzzleScene extends Phaser.Scene {
   private busy = false;
   private onComplete!: () => void;
   private wind = false;
+  private symbols = SYMBOLS.spring;
 
   constructor() {
     super('Puzzle');
@@ -63,6 +69,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.busy = false;
     this.onComplete = data.onComplete;
     const rule = RULES[data.season ?? 'spring'];
+    this.symbols = SYMBOLS[data.season ?? 'spring'];
     this.wind = rule.wind;
 
     // 뒤의 들판을 어둡게 가리고, 그 위를 탭해도 들판이 반응하지 않게 막는다.
@@ -77,7 +84,7 @@ export class PuzzleScene extends Phaser.Scene {
     if (rule.peek || rule.wind)
       this.add.text(width / 2, 40, rule.name, { fontFamily: FONT, fontSize: '12px', color: '#d8c9a3' }).setOrigin(0.5);
 
-    const pairs = Math.min(data.pairs, SYMBOLS.length);
+    const pairs = Math.min(data.pairs, this.symbols.length);
     this.layoutCards(pairs, width, height);
     if (rule.peek) this.peek(rule.wind ? 1200 + pairs * 150 : 1800 + pairs * 200);
   }
@@ -145,7 +152,7 @@ export class PuzzleScene extends Phaser.Scene {
     ]);
     const front = this.add.container(0, 0, [
       this.add.rectangle(0, 0, w, h, 0xf5efe0).setStrokeStyle(3, 0xd8c9a3),
-      this.add.image(0, 0, 'nature-sheet', SYMBOLS[symbol]).setScale(Math.min(3.5, (w * 0.7) / 16)),
+      this.add.image(0, 0, 'nature-sheet', this.symbols[symbol]).setScale(Math.min(3.5, (w * 0.7) / 16)),
     ]);
     front.setVisible(false);
 

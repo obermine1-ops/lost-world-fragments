@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "maps": "node tools/build-maps.mjs && node tools/check-maps.mjs",
-    "check-maps": "node tools/check-maps.mjs"
+    "check-maps": "node tools/check-maps.mjs",
+    "test:play": "node tools/autoplay-headless.mjs",
+    "convert-music": "node tools/convert-music.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0"
@@ -16,6 +18,7 @@
   "devDependencies": {
     "@breezystack/lamejs": "^1.2.7",
     "@wasm-audio-decoders/ogg-vorbis": "^0.1.20",
+    "playwright-core": "^1.64.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.4"
   }
