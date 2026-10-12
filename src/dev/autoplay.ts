@@ -34,11 +34,24 @@ export function installAutoplay(game: Phaser.Game) {
   const active = (key: string) => game.scene.isActive(key);
   const g = () => scene('Game');
 
+  // 시간 초과는 "게임이 실제로 돌아간 시간"으로 잰다: 창이 가려져 화면 갱신이 멈추거나 느려지면
+  // 그만큼 시계도 멈춘다. (이 PC에서 미리보기 창이 가끔 수십 초씩 멈춰 봇이 헛실패하던 문제)
   async function waitFor(cond: () => boolean, timeout: number, label: string) {
-    const start = performance.now();
+    let elapsed = 0;
+    const realStart = performance.now();
+    let last = realStart;
+    let lastFrame = game.loop.frame;
     while (!cond()) {
-      if (performance.now() - start > timeout) throw new Error(`시간 초과: ${label}`);
       await sleep(40);
+      const now = performance.now();
+      const frames = game.loop.frame - lastFrame;
+      const expected = ((now - last) / 1000) * 60;
+      elapsed += (now - last) * Math.min(1, expected > 0 ? frames / expected : 1);
+      last = now;
+      lastFrame = game.loop.frame;
+      if (elapsed > timeout) throw new Error(`시간 초과: ${label}`);
+      // 게임 루프 자체가 죽은 경우(오류)에도 끝없이 기다리지 않게
+      if (now - realStart > timeout * 10) throw new Error(`게임이 멈춤(화면 갱신 없음): ${label}`);
     }
   }
 

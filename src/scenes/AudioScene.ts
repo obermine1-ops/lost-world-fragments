@@ -17,7 +17,8 @@ export class AudioScene extends Phaser.Scene {
       if (file.key.startsWith('music-')) musicFailed(file.key.slice(6) as Music);
     });
     setMusicLoader(this.game, (key) => {
-      this.load.audio(`music-${key}`, `assets/audio/music-${key}.ogg`);
+      // ogg를 못 트는 기기(아이폰 사파리 등)는 mp3 사본을 쓴다. (tools/convert-music.mjs)
+      this.load.audio(`music-${key}`, [`assets/audio/music-${key}.ogg`, `assets/audio/music-${key}.mp3`]);
       if (!this.load.isLoading()) this.load.start();
     });
   }

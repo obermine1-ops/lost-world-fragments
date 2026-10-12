@@ -44,6 +44,32 @@ export function clearSave() {
   }
 }
 
+// 백업 코드: 기록을 글자로 바꿔 복사해 두었다가(다른 기기에서도) 다시 불러온다.
+// 형식 "LWF1:" + base64(저장 파일 JSON). 불러올 때도 옛 버전 고치기(migrate)를 거친다.
+const CODE_PREFIX = 'LWF1:';
+
+export function exportCode(): string | undefined {
+  const state = loadGame();
+  if (!state) return undefined;
+  const json = JSON.stringify({ version: VERSION, savedAt: Date.now(), state } satisfies SaveFile);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return CODE_PREFIX + btoa(binary);
+}
+
+export function importCode(code: string): GameState | undefined {
+  try {
+    const text = code.replace(/\s+/g, '');
+    if (!text.startsWith(CODE_PREFIX)) return undefined;
+    const binary = atob(text.slice(CODE_PREFIX.length));
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    return migrate(JSON.parse(new TextDecoder().decode(bytes)));
+  } catch {
+    return undefined;
+  }
+}
+
 // 옛 버전 기록을 지금 형식으로 바꾼다. 알아볼 수 없는 기록이면 버린다(게임이 깨지지 않게).
 function migrate(file: { version?: number; state?: Record<string, unknown> }): GameState | undefined {
   const s = file.state;

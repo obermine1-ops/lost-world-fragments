@@ -44,3 +44,6 @@ if (import.meta.env.DEV) {
   // 배포본에서만: 홈 화면 설치·오프라인 실행용 (public/sw.js)
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
+
+// 저장 공간이 부족할 때 브라우저가 기록을 지우지 않게 부탁한다. (안 들어줘도 게임에는 지장 없음)
+void navigator.storage?.persist?.().catch(() => false);
