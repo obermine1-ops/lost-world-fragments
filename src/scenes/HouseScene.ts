@@ -30,6 +30,8 @@ export class HouseScene extends Phaser.Scene {
   private hint!: Phaser.GameObjects.Text;
   private ghost?: Phaser.GameObjects.Container;
   private roomLayer!: Phaser.GameObjects.Container;
+  private petLayer!: Phaser.GameObjects.Container;
+  private housePets: Phaser.GameObjects.Sprite[] = [];
   private trayPage = 0;
 
   constructor() {
@@ -61,6 +63,8 @@ export class HouseScene extends Phaser.Scene {
     this.roomLayer = this.add.container(0, 0);
     this.drawRoom();
     this.placedLayer = this.add.container(0, 0);
+    this.petLayer = this.add.container(0, 0);
+    this.spawnPets();
     this.tray = this.add.container(0, 0);
     this.refresh();
 
@@ -176,7 +180,56 @@ export class HouseScene extends Phaser.Scene {
     this.updateHint();
   }
 
+  // ── 놀러 온 친구들 ─────────────────────────────────────
+  // 함께 다니는 동물들이 방 안을 느긋하게 돌아다닌다. 누르면 하트. (물건을 들고 있을 때는 바닥 누르기를 막지 않게 꺼 둔다)
+  private spawnPets() {
+    const s = game.state;
+    const kinds = (['pet', 'frog', 'parrot', 'hamster'] as const).filter((_, i) => [s.pet, s.frog, s.parrot, s.hamster][i]);
+    this.housePets = kinds.map((key) => {
+      const p = this.randomFloorPoint();
+      const sprite = this.add.sprite(p.x, p.y, key, 0).setScale(SCALE);
+      sprite.setInteractive({ useHandCursor: true }).on('pointerup', () => this.petTap(sprite));
+      this.petLayer.add(sprite);
+      this.time.delayedCall(Phaser.Math.Between(300, 2500), () => this.wander(sprite, key));
+      return sprite;
+    });
+  }
+
+  private randomFloorPoint() {
+    return {
+      x: Phaser.Math.Between(this.roomX + CELL + 10, this.roomX + (ROOM_W - 1) * CELL - 10),
+      y: Phaser.Math.Between(this.roomY + CELL + 14, this.roomY + (ROOM_H - 1) * CELL - 10),
+    };
+  }
+
+  private wander(sprite: Phaser.GameObjects.Sprite, key: string) {
+    if (!sprite.active) return;
+    const to = this.randomFloorPoint();
+    const distance = Phaser.Math.Distance.Between(sprite.x, sprite.y, to.x, to.y);
+    sprite.setFlipX(to.x < sprite.x); // 그림은 오른쪽을 보고 있다
+    sprite.play(`${key}-walk`);
+    this.tweens.add({
+      targets: sprite,
+      x: to.x,
+      y: to.y,
+      duration: (distance / 26) * 1000,
+      onUpdate: () => this.petLayer.sort('y'),
+      onComplete: () => {
+        sprite.stop().setFrame(0);
+        this.time.delayedCall(Phaser.Math.Between(1500, 5000), () => this.wander(sprite, key));
+      },
+    });
+  }
+
+  private petTap(sprite: Phaser.GameObjects.Sprite) {
+    sfx(this, 'pet', 0.5);
+    this.tweens.add({ targets: sprite, scaleY: SCALE * 0.8, duration: 90, yoyo: true, repeat: 1 });
+    const heart = this.add.text(sprite.x, sprite.y - 22, '♥', { fontFamily: FONT, fontSize: '18px', color: '#ff7aa2' }).setOrigin(0.5);
+    this.tweens.add({ targets: heart, y: heart.y - 20, alpha: 0, duration: 900, onComplete: () => heart.destroy() });
+  }
+
   private updateHint() {
+    for (const p of this.housePets) if (p.input) p.input.enabled = !this.held;
     this.hint.setText(
       this.held
         ? `'${this.held.name}' — 방 바닥을 눌러 놓기 (상자 칸을 누르면 치우기)`
