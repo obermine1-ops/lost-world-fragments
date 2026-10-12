@@ -62,7 +62,7 @@ export class CollectionScene extends Phaser.Scene {
       const row = Math.floor(i / 3);
       const inRow = Math.min(3, items.length - row * 3);
       this.slot(this.slotX(i % 3, inRow), y + 44 + row * (SLOT + 14), `item-${item.id}`, has, 2.2, () =>
-        has ? `${item.name} — ${item.desc}` : '너구리와 함께 흙더미를 파 보자',
+        has ? `${item.name} — ${item.desc}` : '흙더미나 반짝이는 곳을 동료와 살펴보자',
       );
     });
 

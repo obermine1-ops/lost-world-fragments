@@ -177,3 +177,10 @@
 ## Sprint 22: 반딧불 찾기 도우미 (Y2)
 ## Sprint 23: 완전 수집 선물, v5 전체 테스트 (Y3)
 - 상태: **완료** (2026-10-12) — docs/sprint-21/STORIES.md, docs/sprint-22-23/STORIES.md
+
+---
+
+# v6 스프린트 계획 (처음 오는 사람을 위해) — PRD-v6.md
+## Sprint 24: 길 안내 발자국 (Z1)
+## Sprint 25: 한 번만 나오는 안내, 글 다듬기, 전체 테스트 (Z2, Z3)
+- 상태: **완료** (2026-10-12) — docs/sprint-24-25/STORIES.md

@@ -12,7 +12,7 @@ import { FIREFLIES_PER_REGION, REGIONS, firefliesOf, regionOf, regionsOf, season
 import { itemOf, withJosa } from '../items';
 import { PET_TEXTURE, Pet, type PetKind } from '../pet';
 import type { CollectionData } from './CollectionScene';
-import type { WorldMapData } from './WorldMapScene';
+import { mapTitle, type WorldMapData } from './WorldMapScene';
 import { furnitureFrom, isComplete } from '../furniture';
 
 // 타일 16px 그림을 2배로 확대해 보여준다. (폰 화면에 가로 약 11칸 × 세로 20칸)
@@ -27,6 +27,7 @@ const FEET_HALF_H = 3;
 const SAVE_EVERY_MS = 3000;
 const ALTAR_REACH = 20;
 const TOUCH_REACH = 18; // 너구리·흙더미에 다가갔다고 보는 거리
+const STUCK_NUDGE_MS = 90000; // 이만큼 진전이 없으면 목표 문구를 흔든다
 const FIREFLY_HINT_REACH = 72; // 되찾은 지역에서 남은 반딧불이 반짝여 알려 주는 거리
 
 // 그리는 순서 (숫자가 클수록 위)
@@ -102,6 +103,8 @@ export class GameScene extends Phaser.Scene {
   mapObjects: Phaser.Types.Tilemaps.TiledObject[] = [];
   private pets: Pet[] = []; // 동료 동물 (너구리 → 개구리 순으로 줄지어 따라온다)
   private collideLayer!: Phaser.Tilemaps.TilemapLayer;
+  private guiding = false; // 길 안내 발자국이 떠 있는 동안
+  private lastProgressAt = 0; // 마지막으로 무언가 진전이 있었던 때 (오래 막히면 목표 문구를 흔든다)
 
   constructor() {
     super('Game');
@@ -118,6 +121,8 @@ export class GameScene extends Phaser.Scene {
     this.barriers = [];
     this.spots = [];
     this.pets = [];
+    this.guiding = false;
+    this.lastProgressAt = 0;
     this.region = regionOf(state.map);
     this.world = this.add.layer();
     this.glow = this.add.layer();
@@ -219,6 +224,8 @@ export class GameScene extends Phaser.Scene {
     const title = mapProps.find((p) => p.name === 'title')?.value as string | undefined;
     if (mapProps.find((p) => p.name === 'dark')?.value) this.addDarkness(width, height);
     if (title) this.time.delayedCall(300, () => this.showMessage(title));
+    if (this.goalText.visible) this.tip('goal', '화면 위 목표 문구를 누르면\n가는 길을 알려 줘요', 2600);
+    if (state.map !== 'meadow-a') this.tip('map', '오른쪽 위 "지도"로\n가 본 곳에 바로 갈 수 있어요', 5400);
     const tapHint = firstTime ? this.showTapHint(width, height) : undefined;
 
     // 버튼 위를 누른 경우는 이동으로 치지 않는다.
@@ -245,6 +252,7 @@ export class GameScene extends Phaser.Scene {
       this.savePosition();
     }
     this.checkSpots(body.center);
+    this.nudgeIfStuck();
 
     const waypoint = this.path[0];
     if (!waypoint) return;
@@ -788,6 +796,7 @@ export class GameScene extends Phaser.Scene {
     } else {
       game.state.items.push(reward);
       this.showMessage(`${finder} ${withJosa(itemOf(reward)?.name ?? reward, '을', '를')}\n찾아냈다! (도감에 기록)`);
+      this.tip('collection', '모은 물건은 오른쪽 위\n"도감"에서 볼 수 있어요', 2600);
       this.checkComplete(2600);
     }
     this.savePosition();
@@ -939,6 +948,164 @@ export class GameScene extends Phaser.Scene {
     saveGame(game.state);
   }
 
+  // ── 길 안내 ─────────────────────────────────────────────
+
+  // 지금 목표가 있는 곳 (지점), 또는 길 대신 들려줄 말
+  private guideTarget(): Point | string | undefined {
+    const s = game.state;
+    const r = this.region;
+    if (!r) return undefined;
+    const objs = this.mapObjects;
+    const center = (o: Phaser.Types.Tilemaps.TiledObject) => ({ x: o.x! + (o.width ?? 0) / 2, y: o.y! + (o.height ?? 0) / 2 });
+    if (s.restored.includes(r.key)) {
+      const next = REGIONS[REGIONS.indexOf(r) + 1];
+      if (!next || s.restored.includes(next.key)) return '반딧불은 숨어 있어요.\n가까이 가면 반짝여요';
+      const exit = objs.find((o) => o.name === 'exit' && prop(o, 'to') === next.key);
+      // 다음 계절은 다른 지역에서 이어진다 → 지도로 바로 가면 된다
+      return exit ? center(exit) : `오른쪽 위 "지도"에서\n${withJosa(mapTitle(this, next.key), '으로', '로')} 바로 갈 수 있어요`;
+    }
+    if (!s.gems.includes(r.key)) {
+      const gem = objs.find((o) => o.name === 'gem');
+      if (gem) return center(gem);
+      const hidden = objs.find(
+        (o) => (o.name === 'dig' || o.name === 'perch') && prop(o, 'reward') === 'gem' && !s.dug.includes(prop(o, 'id')!),
+      );
+      if (hidden) {
+        const kind = (hidden.name === 'dig' ? 'raccoon' : prop(hidden, 'pet') ?? 'parrot') as PetKind;
+        if (!hasPet(kind)) return '도와줄 친구는 다른 곳에 있어요.\n오른쪽 위 "지도"로 바로 갈 수 있어요';
+        return center(hidden);
+      }
+    }
+    if (!s.fragments.includes(r.key)) {
+      const fragment = objs.find((o) => o.name === 'fragment');
+      if (fragment) return center(fragment);
+    }
+    const altar = objs.find((o) => o.name === 'altar');
+    return altar ? { x: altar.x!, y: altar.y! + 16 } : undefined;
+  }
+
+  // 아직 열리지 않은 길을 여는 곳들 (막힌 목표 대신 안내할 후보)
+  private unblockers(): Point[] {
+    const s = game.state;
+    const objs = this.mapObjects;
+    const barriers = objs.filter((o) => o.name === 'barrier' && !s.opened.includes(prop(o, 'id')!));
+    const keys = barriers.map((o) => prop(o, 'unlock')!).filter((u) => u.startsWith('key:')).map((u) => u.slice(4));
+    const out: Point[] = [];
+    for (const o of objs) {
+      const reward = prop(o, 'reward');
+      if ((o.name === 'dig' || o.name === 'perch') && !s.dug.includes(prop(o, 'id')!) && reward) {
+        if (reward.startsWith('open:') || (keys.includes(reward) && !s.items.includes(reward))) out.push({ x: o.x!, y: o.y! });
+      }
+    }
+    for (const o of barriers) {
+      const unlock = prop(o, 'unlock')!;
+      const look = prop(o, 'look');
+      if (look === 'lilypad') out.push({ x: o.x! + o.width! / 2, y: o.y! - 10 });
+      else if (unlock.startsWith('key:') && s.items.includes(unlock.slice(4))) out.push({ x: o.x! + o.width! / 2, y: o.y! + o.height! + 8 });
+    }
+    return out;
+  }
+
+  // 목표까지 빛나는 발자국이 차례로 켜졌다가 사라진다.
+  private showGuide() {
+    if (this.guiding || this.busy || this.leaving) return;
+    const target = this.guideTarget();
+    if (target === undefined) return;
+    if (typeof target === 'string') {
+      this.showMessage(target);
+      return;
+    }
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    const from = { x: body.center.x, y: body.center.y };
+    const route = (to: Point) => {
+      const w = [from, ...this.nav.findPath(from, to, FEET_HALF_W, FEET_HALF_H)];
+      return { w, ok: Phaser.Math.Distance.BetweenPoints(w[w.length - 1], to) <= 28 };
+    };
+    // 목표까지 길이 막혀 있으면, 길을 여는 곳(돌무더기 흙더미·열쇠·잠긴 문·연잎 다리 물가)으로 대신 안내한다.
+    let goal: Point = target;
+    let { w: waypoints, ok } = route(target);
+    let detour = false;
+    if (!ok) {
+      for (const p of this.unblockers()) {
+        const r = route(p);
+        if (!r.ok) continue;
+        goal = p;
+        waypoints = r.w;
+        ok = detour = true;
+        break;
+      }
+    }
+    const blocked = !ok;
+
+    // 경로를 따라 일정한 간격으로 발자국 (왼발·오른발 번갈아 살짝 비켜서)
+    const steps: { x: number; y: number }[] = [];
+    let total = 0;
+    for (let i = 1; i < waypoints.length; i++) total += Phaser.Math.Distance.BetweenPoints(waypoints[i - 1], waypoints[i]);
+    const gap = Math.max(12, total / 70);
+    let carry = gap / 2;
+    for (let i = 1; i < waypoints.length; i++) {
+      const a = waypoints[i - 1];
+      const b = waypoints[i];
+      const len = Phaser.Math.Distance.BetweenPoints(a, b);
+      const angle = Phaser.Math.Angle.BetweenPoints(a, b);
+      for (let d = carry; d < len; d += gap) {
+        const side = steps.length % 2 === 0 ? 2 : -2;
+        steps.push({
+          x: a.x + Math.cos(angle) * d - Math.sin(angle) * side,
+          y: a.y + Math.sin(angle) * d + Math.cos(angle) * side,
+        });
+      }
+      carry = (carry - len) % gap;
+      if (carry < 0) carry += gap;
+    }
+
+    this.guiding = true;
+    sfx(this, 'secret', 0.3);
+    const STEP_MS = 45;
+    steps.forEach((p, i) => {
+      const dot = this.add.ellipse(p.x, p.y, 4, 3, 0xffe9a8).setAlpha(0).setDepth(DEPTH.marker);
+      this.glow.add(dot);
+      this.tweens.chain({
+        targets: dot,
+        tweens: [
+          { alpha: 0.95, duration: 150, delay: i * STEP_MS },
+          { alpha: 0, duration: 500, delay: 1400 },
+        ],
+        onComplete: () => dot.destroy(),
+      });
+    });
+    const doneAt = steps.length * STEP_MS + 2100;
+    if (detour) this.time.delayedCall(steps.length * STEP_MS + 200, () => this.showMessage('길이 막혀 있다.\n먼저 저곳을 살펴보자'));
+    if (!blocked) {
+      const ring = this.add.circle(goal.x, goal.y, 5).setStrokeStyle(1.5, 0xffe9a8).setAlpha(0).setDepth(DEPTH.marker);
+      this.glow.add(ring);
+      this.tweens.add({ targets: ring, alpha: { from: 1, to: 0 }, scale: { from: 1, to: 4 }, duration: 800, delay: steps.length * STEP_MS, repeat: 2, onComplete: () => ring.destroy() });
+    } else {
+      this.time.delayedCall(steps.length * STEP_MS + 200, () => this.showMessage('이 너머에 있다.\n길을 열 방법을 찾아보자'));
+    }
+    this.time.delayedCall(doneAt, () => (this.guiding = false));
+  }
+
+  // 한 지역에서 오래 아무 진전이 없으면 목표 문구를 살짝 흔들어 "눌러 보라"고 알린다.
+  private nudgeIfStuck() {
+    if (!this.region || game.state.restored.includes(this.region.key) || this.busy) return;
+    if (this.time.now - this.lastProgressAt < STUCK_NUDGE_MS) return;
+    this.lastProgressAt = this.time.now;
+    if (!this.goalText.visible) return;
+    this.tweens.add({ targets: this.goalText, x: { from: 4, to: 12 }, duration: 70, yoyo: true, repeat: 4, onComplete: () => this.goalText.setX(8) });
+    this.goalText.setColor('#ffffff');
+    this.time.delayedCall(1200, () => this.goalText.setColor('#ffe9a8'));
+  }
+
+  // 처음 한 번만 보여 주는 안내 (기록에 남겨 다시 나오지 않게)
+  private tip(key: string, text: string, delay: number) {
+    const s = game.state;
+    if (s.tips.includes(key)) return;
+    s.tips.push(key);
+    saveGame(s);
+    this.time.delayedCall(delay, () => this.showMessage(text));
+  }
+
   // ── 화면 표시 ────────────────────────────────────────────
 
   private createHud() {
@@ -959,6 +1126,8 @@ export class GameScene extends Phaser.Scene {
       wordWrap: { width: this.scale.width - 120 },
     });
     this.ui.add(this.goalText);
+    // 목표 문구를 누르면 그곳까지 가는 길을 발자국으로 보여 준다.
+    this.goalText.setInteractive({ useHandCursor: true }).on('pointerup', () => this.showGuide());
     this.updateHud();
 
     this.ui.add(addButton(this, this.scale.width - 40, 24, '도감', () => this.openCollection(), 64, 32));
@@ -981,7 +1150,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (!s.gems.includes(r.key)) {
       // 보석이 땅속에 묻힌 곳(언덕·섬)은 너구리가 있어야 찾을 수 있다
-      if (['hill-c', 'island-g'].includes(r.key) && !s.pet) return '목표: 땅을 파는 친구가 필요하다 (들판의 너구리)';
+      if (['hill-c', 'island-g'].includes(r.key) && !s.pet) return '목표: 땅을 파는 친구가 필요하다 (봄 들판의 너구리)';
       // 보석이 절벽 위에 있는 곳은 앵무새가 있어야 가져올 수 있다
       if (['harvest-i', 'tower-j'].includes(r.key) && !s.parrot) return '목표: 높은 곳에 닿을 친구가 필요하다 (단풍 숲의 앵무새)';
       if (['lake-l', 'peak-m'].includes(r.key) && !s.hamster) return '목표: 좁은 굴에 들어갈 친구가 필요하다 (눈 덮인 숲의 햄스터)';
@@ -1067,7 +1236,8 @@ export class GameScene extends Phaser.Scene {
       `◆ 조각 ${count(s.fragments)}/${total}   ● 보석 ${count(s.gems)}/${total}   ${icon} ${seasonOf(season).name} ${count(s.restored)}/${total}`,
     );
     const goal = this.currentGoal();
-    this.goalText.setText(goal).setVisible(goal !== '');
+    this.goalText.setText(goal.startsWith('목표') ? `${goal}  ›` : goal).setVisible(goal !== '');
+    this.lastProgressAt = this.time.now;
   }
 
   // 화면 가운데에 잠깐 떠올랐다 사라지는 안내 문구

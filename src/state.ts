@@ -26,13 +26,15 @@ export interface GameState {
   // 나의 집 벽지·바닥 (furniture.ts의 WALLPAPERS·FLOORS 번호)
   wallpaper: number;
   floor: number;
+  // 이미 본 한 번만 나오는 안내 (goal·map·collection)
+  tips: string[];
 }
 
 export const FIRST_MAP = 'meadow-a';
 export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j', 'snow-k', 'lake-l', 'peak-m'] as const;
 
 export function newGame(): GameState {
-  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, parrot: false, hamster: false, dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0 };
+  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, parrot: false, hamster: false, dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0, tips: [] };
 }
 
 export const game = { state: newGame() };
