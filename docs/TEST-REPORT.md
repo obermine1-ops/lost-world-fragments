@@ -104,3 +104,6 @@
 
 ## 2026-10-12 v20 (새 소식)
 - `npm run test:features` 10/10 (새 소식 추가), `npm run test:play` ✅ 350초.
+
+## 2026-10-12 v21 (화면 전체 점검)
+- 12개 화면 캡처, 겹침 1곳 수정. `npm run test:features` 10/10, `npm run test:play` ✅ 350초.

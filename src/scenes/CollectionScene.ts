@@ -93,7 +93,7 @@ export class CollectionScene extends Phaser.Scene {
     this.section('되찾은 기억 (눌러서 다시 보기)', y);
     regions.forEach((r, i) => {
       const has = s.restored.includes(r.key);
-      this.slot(this.slotX(i, regions.length), y + 44, `face-${r.memory.face}`, has, 1.3, () => {
+      this.slot(this.slotX(i, regions.length), y + 50, `face-${r.memory.face}`, has, 1.3, () => {
         if (!has) return '아직 되찾지 못한 기억';
         this.replay(r.memory.face, r.memory.name, r.memory.lines);
         return '';
@@ -103,11 +103,11 @@ export class CollectionScene extends Phaser.Scene {
     const ffKeys = regions.map((r) => r.key);
     const ff = s.fireflies.filter((f) => ffKeys.some((k) => f.startsWith(`${k}-`))).length;
     this.add
-      .text(width / 2, y + 86, `숨은 반딧불 ${ff} / ${firefliesOf(season)}`, { fontFamily: FONT, fontSize: '13px', color: '#ffb3e6' })
+      .text(width / 2, y + 92, `숨은 반딧불 ${ff} / ${firefliesOf(season)}`, { fontFamily: FONT, fontSize: '13px', color: '#ffb3e6' })
       .setOrigin(0.5);
 
     this.info = this.add
-      .text(width / 2, y + 108, '칸을 눌러 보세요', {
+      .text(width / 2, y + 114, '칸을 눌러 보세요', {
         fontFamily: FONT,
         fontSize: '14px',
         color: '#d8c9a3',
