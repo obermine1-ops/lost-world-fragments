@@ -137,3 +137,6 @@
 
 ## 2026-10-13 v31 (도감 친구 탭)
 - 캡처 확인. `npm run test:features` 13/13, `npm run test:play` ✅ 349초.
+
+## 2026-10-13 v33 (지도에 동굴·낚시터)
+- 캡처 확인. `npm run test:features` 13/13(빠른 이동에 동굴), `npm run test:play` ✅ 350초.

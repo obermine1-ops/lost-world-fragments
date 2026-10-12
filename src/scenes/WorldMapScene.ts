@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { FONT, addButton, fadeIn } from '../ui';
 import { sfx } from '../sound';
 import { game } from '../state';
-import { FIREFLIES_PER_REGION, REGIONS, SEASONS, regionsOf } from '../regions';
+import { CAVE_DONE, FIREFLIES_PER_REGION, REGIONS, SEASONS, regionsOf } from '../regions';
 
 export interface WorldMapData {
   current: string; // 지금 있는 지역
@@ -27,6 +27,12 @@ export function canTravel(key: string) {
   const s = game.state;
   const i = REGIONS.findIndex((r) => r.key === key);
   return i === 0 || s.restored.includes(key) || s.restored.includes(REGIONS[i - 1].key);
+}
+
+// 그 지역 지도에 낚시터가 있는지
+function hasFishing(scene: Phaser.Scene, key: string) {
+  const layers = scene.cache.tilemap.get(key)?.data?.layers as { name: string; objects?: { name: string }[] }[] | undefined;
+  return !!layers?.find((l) => l.name === 'objects')?.objects?.some((o) => o.name === 'fishing');
 }
 
 export function firefliesFound(key: string) {
@@ -55,6 +61,8 @@ export class WorldMapScene extends Phaser.Scene {
         const x = width / 2 + (i % 2 === 0 ? -1 : 1) * (CELL_W / 2 + 4);
         this.cell(x, y + Math.floor(i / 2) * ROW, r.key, data);
       });
+      // 겨울 칸의 빈자리: 네 계절을 모두 되찾은 뒤 열리는 무지개 동굴
+      if (season.key === 'winter' && s.restored.includes('peak-m')) this.caveCell(width / 2 + CELL_W / 2 + 4, y + ROW, data);
       y += Math.ceil(regions.length / 2) * ROW - CELL_H / 2 + 6;
     }
 
@@ -71,6 +79,25 @@ export class WorldMapScene extends Phaser.Scene {
     }
   }
 
+  private caveCell(x: number, y: number, data: WorldMapData) {
+    const done = game.state.opened.includes(CAVE_DONE);
+    const here = data.current === 'cave-n';
+    const bg = this.add.rectangle(x, y, CELL_W, CELL_H, 0x2a2738).setStrokeStyle(2, here ? 0xffe9a8 : 0xb59cff);
+    this.add.text(x, y - 8, `◇ ${mapTitle(this, 'cave-n')}`, { fontFamily: FONT, fontSize: '14px', color: '#ffffff' }).setOrigin(0.5);
+    this.add
+      .text(x, y + 9, here ? '지금 여기' : done ? '빛을 되찾음' : '봄 들판 왼쪽 아래', { fontFamily: FONT, fontSize: '11px', color: '#c9b8ff' })
+      .setOrigin(0.5);
+    bg.setInteractive({ useHandCursor: true });
+    bg.on('pointerdown', () => bg.setFillStyle(0x433d5c));
+    bg.on('pointerout', () => bg.setFillStyle(0x2a2738));
+    bg.on('pointerup', () => {
+      bg.setFillStyle(0x2a2738);
+      sfx(this, 'click', 0.35);
+      if (here) data.onClose();
+      else data.onTravel('cave-n');
+    });
+  }
+
   private cell(x: number, y: number, key: string, data: WorldMapData) {
     const s = game.state;
     const open = canTravel(key);
@@ -83,6 +110,11 @@ export class WorldMapScene extends Phaser.Scene {
       .text(x, y - 8, open ? mapTitle(this, key) : '???', { fontFamily: FONT, fontSize: '14px', color: open ? '#ffffff' : '#6b6584' })
       .setOrigin(0.5);
     if (!open) return;
+    // 낚시터가 있는 곳은 오른쪽 위에 작게 "낚시" (색을 되찾아야 물고기가 돌아온다)
+    if (hasFishing(this, key))
+      this.add
+        .text(x + CELL_W / 2 - 5, y - CELL_H / 2 + 3, '낚시', { fontFamily: FONT, fontSize: '9px', color: restored ? '#7fd8ff' : '#5a7088' })
+        .setOrigin(1, 0);
     const ff = firefliesFound(key);
     const status = here ? '지금 여기' : restored ? '색을 되찾음' : '되찾는 중';
     this.add

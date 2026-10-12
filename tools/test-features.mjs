@@ -41,9 +41,9 @@ const startGame = (state, spawn) =>
 
 console.log('기능 점검');
 
-await check('세계 지도로 빠른 이동 (13개 지역 도착 칸이 막히지 않음)', async () => {
+await check('세계 지도로 빠른 이동 (13개 지역 + 무지개 동굴 도착 칸이 막히지 않음)', async () => {
   const bad = [];
-  for (const map of ALL) {
+  for (const map of [...ALL, 'cave-n']) {
     await startGame(fullState({ map }), 'travel');
     const ok = await run(() => {
       const gs = window.game.scene.getScene('Game');
