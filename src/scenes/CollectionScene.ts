@@ -114,7 +114,7 @@ export class CollectionScene extends Phaser.Scene {
     const { width } = this.scale;
     const s = game.state;
     const col = { name: 24, time: 196, guide: 266, nudge: 326 };
-    const head = { fontFamily: FONT, fontSize: '11px', color: '#8f86c9' };
+    const head = { fontFamily: FONT, fontSize: '12px', color: '#8f86c9' };
     let y = 104;
     this.add.text(col.name, y, '지역', head);
     this.add.text(col.time, y, '시간', head).setOrigin(0.5, 0);
@@ -142,7 +142,7 @@ export class CollectionScene extends Phaser.Scene {
     this.add
       .text(width / 2, y + 34, '지인 테스트 중이라면 이 화면을 캡처해서 보내 주세요.\n어디서 오래 머물고 막혔는지 알 수 있어요.', {
         fontFamily: FONT,
-        fontSize: '11px',
+        fontSize: '12px',
         color: '#a49dc0',
         align: 'center',
         lineSpacing: 4,

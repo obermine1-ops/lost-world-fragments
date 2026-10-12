@@ -88,7 +88,7 @@ export class WorldMapScene extends Phaser.Scene {
     this.add
       .text(x, y + 9, `${status} · 반딧불 ${ff}/${FIREFLIES_PER_REGION}`, {
         fontFamily: FONT,
-        fontSize: '10px',
+        fontSize: '11px',
         color: ff === FIREFLIES_PER_REGION ? '#ffb3e6' : '#a49dc0',
       })
       .setOrigin(0.5);

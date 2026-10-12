@@ -60,7 +60,7 @@ export class TitleScene extends Phaser.Scene {
       this.add
         .text(width / 2, height * 0.08, '아이폰은 공유 버튼 → "홈 화면에 추가"로\n열어야 기록이 오래 안전해요', {
           fontFamily: FONT,
-          fontSize: '11px',
+          fontSize: '12px',
           color: '#d8c9a3',
           align: 'center',
           lineSpacing: 4,
