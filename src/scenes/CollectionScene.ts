@@ -4,12 +4,13 @@ import { formatPlayTime, game, playMs } from '../state';
 import { CAVE_DONE, CAVE_ENDING, REGIONS, SEASONS, firefliesOf, regionsOf, type Season } from '../regions';
 import { mapTitle } from './WorldMapScene';
 import { RARE_ITEMS } from '../items';
+import { FISH } from '../fish';
 import type { MemoryData } from './MemoryScene';
 import { isComplete } from '../furniture';
 
 export interface CollectionData {
   onClose: () => void;
-  season?: Season | 'stats'; // 'stats' = 플레이 기록 탭
+  season?: Season | 'stats' | 'fish'; // 'stats' = 플레이 기록 탭, 'fish' = 물고기
 }
 
 const SLOT = 56;
@@ -35,12 +36,16 @@ export class CollectionScene extends Phaser.Scene {
       this.add.text(width - 20, 34, '★ 완전 수집', { fontFamily: FONT, fontSize: '12px', color: '#ffb3e6' }).setOrigin(1, 0.5);
 
     // 탭: 봄 / 여름 / 가을 / 겨울 / 기록
-    const tabs: { key: Season | 'stats'; name: string }[] = [...SEASONS.map((sea) => ({ key: sea.key, name: sea.name })), { key: 'stats', name: '기록' }];
+    const tabs: { key: Season | 'stats' | 'fish'; name: string }[] = [
+      ...SEASONS.map((sea) => ({ key: sea.key, name: sea.name })),
+      { key: 'fish', name: '물고기' },
+      { key: 'stats', name: '기록' },
+    ];
     tabs.forEach((t, i) => {
-      const x = width / 2 + (i - (tabs.length - 1) / 2) * 68;
+      const x = width / 2 + (i - (tabs.length - 1) / 2) * 58;
       const tab = addButton(this, x, 72, t.name, () => {
         if (t.key !== page) this.scene.restart({ ...data, season: t.key });
-      }, 62, 30);
+      }, 54, 30);
       if (t.key !== page) tab.setAlpha(0.5);
     });
     const close = () =>
@@ -50,6 +55,11 @@ export class CollectionScene extends Phaser.Scene {
       }, 140, 44);
     if (page === 'stats') {
       this.showStats();
+      close();
+      return;
+    }
+    if (page === 'fish') {
+      this.showFish();
       close();
       return;
     }
@@ -191,6 +201,38 @@ export class CollectionScene extends Phaser.Scene {
       if (text) this.info.setText(text);
     });
     return img;
+  }
+
+  // 물고기 도감: 계절마다 둘, 잡은 것은 컬러와 잡은 수
+  private showFish() {
+    const { width } = this.scale;
+    const s = game.state;
+    let y = 104;
+    SEASONS.forEach((sea, row) => {
+      this.add.text(24, y, sea.name, { fontFamily: FONT, fontSize: '13px', color: '#8f86c9' });
+      FISH.filter((f) => f.season === sea.key).forEach((f, i) => {
+        const x = width / 2 - 70 + i * 140;
+        const n = s.fish[f.id] ?? 0;
+        const img = this.slot(x, y + 40, f.texture, n > 0, 2.6, () =>
+          n > 0 ? `${f.name} (${n}마리) — ${f.desc}` : `${sea.name} 물가에서 낚을 수 있어요`,
+        );
+        if (n > 0 && f.tint) img.setTint(f.tint);
+        this.add
+          .text(x, y + 74, n > 0 ? `${f.name} ×${n}` : '???', { fontFamily: FONT, fontSize: '12px', color: n > 0 ? '#ffffff' : '#5a5470' })
+          .setOrigin(0.5, 0);
+      });
+      y += row < SEASONS.length - 1 ? 100 : 0;
+    });
+    const kinds = FISH.filter((f) => (s.fish[f.id] ?? 0) > 0).length;
+    this.info = this.add
+      .text(width / 2, y + 104, `물고기 ${kinds} / ${FISH.length} — 칸을 눌러 보세요`, {
+        fontFamily: FONT,
+        fontSize: '13px',
+        color: '#d8c9a3',
+        align: 'center',
+        wordWrap: { width: width - 48, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5, 0);
   }
 
   // 되찾은 기억 장면을 도감 위에 다시 띄운다.

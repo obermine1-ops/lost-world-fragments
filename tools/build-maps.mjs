@@ -350,6 +350,7 @@ function meadowA() {
 
   m.area('dirt', 13, 0, 3, H); // 남북으로 가로지르는 길 (위: 숲길, 아래: 바닷가)
   m.area('pond', 3, 19, 7, 5); // 연못
+  m.point('fishing', 9, 21); // 낚시터 (연못 오른쪽 가장자리)
   m.area('dirt', 20, 7, 6, 4); // 오른쪽 위 공터
 
   m.border('green', { top: [12, 17], bottom: [12, 17], left: [43, 46] });
@@ -537,6 +538,7 @@ function beachE() {
 
   m.area('sea', 0, 27, W, H - 27); // 바다
   m.area('sea', 4, 14, 5, 4); // 조수 웅덩이
+  m.point('fishing', 8, 15); // 낚시터
   m.area('sea', 21, 8, 5, 3); // 바위 웅덩이
 
   m.border('round', { top: [12, 17], right: [16, 19] }, { bottom: false });
@@ -689,6 +691,7 @@ function harvestI() {
   m.area('cliff', 19, 17, 8, 6);
   m.area('cliff', 5, 25, 7, 5);
   m.area('pond', 20, 30, 5, 3); // 물웅덩이
+  m.point('fishing', 20, 31); // 낚시터
   m.border('olive', { top: [13, 16], bottom: [13, 16] });
   for (const [x, y] of [[24, 7], [16, 13], [4, 21], [15, 33]]) m.bigTree('maple', x, y);
 
@@ -780,6 +783,7 @@ function lakeL() {
   const m = new MapBuilder('lake-l', '얼어붙은 호수', W, H, 20261041, { base: 'snow' });
 
   m.area('ice', 6, 13, 18, 11); // 얼어붙은 호수
+  m.point('fishing', 15, 23); // 얼음 구멍 낚시터 (호수 아래쪽 가장자리)
   m.pocket(22, 28, 5, 5); // 눈벽 속 공간 (보석)
   m.border('snowpine', { top: [13, 16], bottom: [13, 16] });
   for (const [x, y] of [[4, 7], [25, 8], [5, 33]]) m.bigTree('snow', x, y);

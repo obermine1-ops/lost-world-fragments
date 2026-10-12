@@ -13,6 +13,7 @@ import { itemOf, withJosa } from '../items';
 import { PET_TEXTURE, Pet, type PetKind } from '../pet';
 import type { CollectionData } from './CollectionScene';
 import { mapTitle, type WorldMapData } from './WorldMapScene';
+import type { FishingData } from './FishingScene';
 import { furnitureFrom, isComplete } from '../furniture';
 
 // 타일 16px 그림을 2배로 확대해 보여준다. (폰 화면에 가로 약 11칸 × 세로 20칸)
@@ -59,7 +60,8 @@ const SHARDS: Record<string, { name: string; gem: string; tint: number }> = {
   'rainbow-b': { name: '하늘빛 조각', gem: 'gem-purple', tint: 0x9ae6ff },
 };
 const MSG_TREASURE_EMPTY = (n: number) => `받침돌에 빈 홈이 두 개 있다… (${n}/2)\n동굴 어딘가의 빛 조각을 찾아오자`;
-const MSG_CAVE_GIFT = (gift: string) => `새 가구를 얻었다: ${gift}\n(봄 들판의 나의 집에 놓을 수 있다)`;
+const MSG_NO_FISH = '물이 잿빛으로 고여 있다…\n색을 되찾으면 물고기도 돌아올 것 같다';
+const MSG_CAVE_GIFT =(gift: string) => `새 가구를 얻었다: ${gift}\n(봄 들판의 나의 집에 놓을 수 있다)`;
 
 
 const RAINBOW = [0xff8a8a, 0xffc27a, 0xfff07a, 0x9cf08a, 0x8ad8ff, 0xb59cff]; // 무지개 동굴의 빛
@@ -262,6 +264,8 @@ export class GameScene extends Phaser.Scene {
     if (title) this.time.delayedCall(300, () => this.showMessage(title));
     if (this.goalText.visible) this.tip('goal', '화면 위 목표 문구를 누르면\n가는 길을 알려 줘요', 2600);
     if (state.map !== 'meadow-a') this.tip('map', '오른쪽 위 "지도"로\n가 본 곳에 바로 갈 수 있어요', 5400);
+    if (state.restored.includes(state.map) && objects.some((o) => o.name === 'fishing'))
+      this.tip('fishing', '물가의 잔물결에 다가가면\n낚시를 할 수 있어요', 8200);
     const tapHint = firstTime ? this.showTapHint(width, height) : undefined;
 
     // 버튼 위를 누른 경우는 이동으로 치지 않는다.
@@ -357,6 +361,7 @@ export class GameScene extends Phaser.Scene {
       // 나의 집 문 앞: 서면 들어간다.
       if (o.name === 'house') this.addSpot(o.x!, o.y!, TOUCH_REACH, () => this.enterHouse());
       if (o.name === 'treasure') this.placeTreasure(o.x!, o.y!);
+      if (o.name === 'fishing') this.placeFishing(o.x!, o.y!);
       // 지역 길목: 들어서면 화면이 어두워졌다가 다음 지역의 길목에서 나타난다.
       if (o.name === 'exit') {
         const zone = this.add.zone(o.x!, o.y!, o.width!, o.height!).setOrigin(0);
@@ -947,6 +952,35 @@ export class GameScene extends Phaser.Scene {
           fadeTo(this, 'End', { season: region.season });
         });
       });
+    });
+  }
+
+  // ── 낚시터 ────────────────────────────────────────────
+  // 물 위의 잔물결 표시. 다가가면 낚시 화면(색을 되찾은 지역만 — 물고기는 색과 함께 돌아온다).
+  private placeFishing(x: number, y: number) {
+    const ripples = [0, 1].map((i) => {
+      const r = this.add.ellipse(x, y, 8, 4).setStrokeStyle(1, 0xffffff, 0.8).setDepth(DEPTH.marker);
+      this.glow.add(r);
+      this.tweens.add({ targets: r, scale: 2.2, alpha: 0, duration: 1600, delay: i * 800, repeat: -1 });
+      return r;
+    });
+    void ripples;
+    this.addSpot(x, y, TOUCH_REACH + 6, () => {
+      const r = this.region;
+      if (!r || !game.state.restored.includes(r.key)) {
+        this.showMessage(MSG_NO_FISH);
+        return;
+      }
+      this.stopMoving();
+      this.scene.pause();
+      this.scene.launch('Fishing', {
+        season: r.season,
+        onClose: () => {
+          this.scene.stop('Fishing');
+          this.scene.resume();
+          this.updateHud();
+        },
+      } satisfies FishingData);
     });
   }
 

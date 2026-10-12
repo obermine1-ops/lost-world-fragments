@@ -5,6 +5,7 @@ import { MAPS } from '../state';
 import { REGIONS } from '../regions';
 import { RARE_ITEMS } from '../items';
 import { SFX } from '../sound';
+import { FISH_TEXTURES } from '../fish';
 
 // 게임에 필요한 그림·지도를 처음에 한 번 불러온다.
 export class PreloadScene extends Phaser.Scene {
@@ -46,6 +47,7 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('face-pet', 'assets/actors/pet-face.png');
     this.load.image('feather', 'assets/items/feather.png');
     for (const item of RARE_ITEMS) this.load.image(`item-${item.id}`, `assets/items/${item.id}.png`);
+    for (const key of FISH_TEXTURES) this.load.image(key, `assets/fish/${key}.png`);
     for (const key of SFX) this.load.audio(`sfx-${key}`, `assets/audio/sfx-${key}.wav`);
     for (const gem of new Set(REGIONS.map((r) => r.gem))) this.load.image(`gem-${gem}`, `assets/items/gem-${gem}.png`);
     for (const face of new Set(REGIONS.map((r) => r.memory.face))) this.load.image(`face-${face}`, `assets/faces/${face}.png`);

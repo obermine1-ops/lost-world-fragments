@@ -1,5 +1,6 @@
 import { FIREFLIES_PER_REGION, REGIONS, firefliesOf, regionsOf, SEASONS } from './regions';
 import { RARE_ITEMS } from './items';
+import { FISH } from './fish';
 import type { GameState } from './state';
 
 // 나의 집에 놓을 수 있는 가구. 돈·상점 없이, 탐험하며 얻는다.
@@ -40,6 +41,7 @@ export const FURNITURE: Furniture[] = [
   { id: 'snow-bowl', name: '눈꽃 그릇', sheet: 'element-sheet', frames: [10], from: 'fireflies:winter' },
   { id: 'star-stand', name: '별빛 스탠드', sheet: 'element-sheet', frames: [54, 70], from: 'complete' },
   { id: 'cave-doll', name: '동굴 친구 인형', sheet: 'element-sheet', frames: [15], from: 'cave' },
+  { id: 'fish-box', name: '낚시 상자', sheet: 'element-sheet', frames: [98], from: 'fish:all' },
 ];
 
 // 완전 수집: 숨은 반딧불과 희귀 아이템을 모두 모았는지
@@ -64,6 +66,7 @@ export function ownedPlaceables(s: GameState): Placeable[] {
     if (f.from === 'start') return true;
     if (f.from === 'complete') return isComplete(s);
     if (f.from === 'cave') return s.opened.includes('cave-treasure');
+    if (f.from === 'fish:all') return FISH.every((fish) => (s.fish[fish.id] ?? 0) > 0);
     if (f.from.startsWith('season:')) return seasonDone(f.from.slice(7));
     if (f.from.startsWith('fireflies:')) return firefliesDone(f.from.slice(10));
     return s.restored.includes(f.from);

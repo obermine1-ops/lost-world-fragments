@@ -30,6 +30,8 @@ export interface GameState {
   tips: string[];
   // 지역별 플레이 기록 (지인 테스트용): 머문 시간(ms) · 길 안내 누른 횟수 · 오래 막혀 목표가 흔들린 횟수
   stats: Record<string, RegionStats>;
+  // 낚은 물고기 (fish.ts id → 잡은 수)
+  fish: Record<string, number>;
 }
 
 export interface RegionStats {
@@ -47,7 +49,7 @@ export const FIRST_MAP = 'meadow-a';
 export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j', 'snow-k', 'lake-l', 'peak-m', 'cave-n'] as const;
 
 export function newGame(): GameState {
-  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, parrot: false, hamster: false, dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0, tips: [], stats: {} };
+  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, parrot: false, hamster: false, dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0, tips: [], stats: {}, fish: {} };
 }
 
 export const game = { state: newGame() };
