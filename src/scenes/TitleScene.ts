@@ -3,7 +3,7 @@ import { FONT, addButton, addMuteButton, fadeIn, fadeTo } from '../ui';
 import { music } from '../sound';
 import { game, newGame } from '../state';
 import { clearSave, exportCode, importCode, loadGame, saveGame } from '../save';
-import { INTRO_LINES, SEASONS, regionsOf, type Season } from '../regions';
+import { CAVE_DONE, INTRO_LINES, SEASONS, regionsOf, type Season } from '../regions';
 import type { MemoryData } from './MemoryScene';
 import { isComplete } from '../furniture';
 
@@ -50,8 +50,8 @@ export class TitleScene extends Phaser.Scene {
       this.add
         .text(width / 2, height * 0.56, '✿  ☀  ✾  ❄  모든 계절을 되찾았다', { fontFamily: FONT, fontSize: '13px', color: '#ffe9a8' })
         .setOrigin(0.5);
-      if (isComplete(saved))
-        this.add.text(width / 2, height * 0.59, '★ 완전 수집', { fontFamily: FONT, fontSize: '12px', color: '#ffb3e6' }).setOrigin(0.5);
+      const badges = [isComplete(saved) && '★ 완전 수집', saved.opened.includes(CAVE_DONE) && '◇ 무지개 동굴'].filter(Boolean).join('   ');
+      if (badges) this.add.text(width / 2, height * 0.59, badges, { fontFamily: FONT, fontSize: '12px', color: '#ffb3e6' }).setOrigin(0.5);
     }
     // 아이폰 사파리는 한동안 안 들어온 사이트의 기록을 지울 수 있다 → 홈 화면에 추가하면 안전
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);

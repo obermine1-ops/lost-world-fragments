@@ -8,7 +8,7 @@ import { ActorAnimator } from '../actor';
 import { NavGrid, type Point } from '../pathfinding';
 import { game, statsOf } from '../state';
 import { saveGame } from '../save';
-import { FIREFLIES_PER_REGION, REGIONS, firefliesOf, regionOf, regionsOf, seasonOf, type Region, type Season } from '../regions';
+import { CAVE_DONE, CAVE_ENDING, FIREFLIES_PER_REGION, REGIONS, firefliesOf, regionOf, regionsOf, seasonOf, type Region, type Season } from '../regions';
 import { itemOf, withJosa } from '../items';
 import { PET_TEXTURE, Pet, type PetKind } from '../pet';
 import type { CollectionData } from './CollectionScene';
@@ -58,15 +58,9 @@ const SHARDS: Record<string, { name: string; gem: string; tint: number }> = {
   'rainbow-a': { name: '노을빛 조각', gem: 'gem-red', tint: 0xffb38a },
   'rainbow-b': { name: '하늘빛 조각', gem: 'gem-purple', tint: 0x9ae6ff },
 };
-export const CAVE_DONE = 'cave-treasure'; // 받침돌에 조각을 올리면 opened에 남는다
 const MSG_TREASURE_EMPTY = (n: number) => `받침돌에 빈 홈이 두 개 있다… (${n}/2)\n동굴 어딘가의 빛 조각을 찾아오자`;
 const MSG_CAVE_GIFT = (gift: string) => `새 가구를 얻었다: ${gift}\n(봄 들판의 나의 집에 놓을 수 있다)`;
-const CAVE_ENDING = [
-  '동굴 가장 깊은 곳에서, 일곱 빛깔이 피어올랐다.',
-  '너구리, 개구리, 앵무새, 햄스터.',
-  '혼자였다면 한 걸음도 오지 못했을 길이었다.',
-  '잃어버린 줄 알았던 세계는, 처음부터 친구들과 함께 있었다.',
-];
+
 
 const RAINBOW = [0xff8a8a, 0xffc27a, 0xfff07a, 0x9cf08a, 0x8ad8ff, 0xb59cff]; // 무지개 동굴의 빛
 

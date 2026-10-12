@@ -330,3 +330,12 @@ export const INTRO_LINES = [
 export function regionOf(key: string) {
   return REGIONS.find((r) => r.key === key);
 }
+
+// 무지개 동굴 (엔딩 뒤 비밀 장소, 지도 cave-n): 받침돌에 빛 조각을 올리면 opened에 CAVE_DONE이 남는다
+export const CAVE_DONE = 'cave-treasure';
+export const CAVE_ENDING = [
+  '동굴 가장 깊은 곳에서, 일곱 빛깔이 피어올랐다.',
+  '너구리, 개구리, 앵무새, 햄스터.',
+  '혼자였다면 한 걸음도 오지 못했을 길이었다.',
+  '잃어버린 줄 알았던 세계는, 처음부터 친구들과 함께 있었다.',
+];

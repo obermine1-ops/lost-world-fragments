@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FONT, addButton, fadeIn } from '../ui';
 import { formatPlayTime, game, playMs } from '../state';
-import { REGIONS, SEASONS, firefliesOf, regionsOf, type Season } from '../regions';
+import { CAVE_DONE, CAVE_ENDING, REGIONS, SEASONS, firefliesOf, regionsOf, type Season } from '../regions';
 import { mapTitle } from './WorldMapScene';
 import { RARE_ITEMS } from '../items';
 import type { MemoryData } from './MemoryScene';
@@ -134,6 +134,28 @@ export class CollectionScene extends Phaser.Scene {
         this.add.text(col.nudge, y, String(st.nudges), style).setOrigin(0.5, 0);
       }
       y += 22;
+    }
+    // 엔딩 뒤 무지개 동굴 (가 본 경우만)
+    const cave = s.stats['cave-n'];
+    if (cave) {
+      const style = { ...row, color: s.opened.includes(CAVE_DONE) ? '#ffffff' : '#ffe9a8' };
+      this.add.text(col.name, y, `${s.opened.includes(CAVE_DONE) ? '✓' : '·'} ◇ 무지개 동굴`, style);
+      this.add.text(col.time, y, formatPlayTime(cave.ms), style).setOrigin(0.5, 0);
+      this.add.text(col.guide, y, String(cave.guides), style).setOrigin(0.5, 0);
+      this.add.text(col.nudge, y, String(cave.nudges), style).setOrigin(0.5, 0);
+      y += 22;
+    }
+    if (s.opened.includes(CAVE_DONE)) {
+      addButton(this, width / 2, this.scale.height - 100, '동굴 이야기 다시 보기', () => {
+        this.scene.pause();
+        this.scene.launch('Memory', {
+          lines: CAVE_ENDING,
+          onComplete: () => {
+            this.scene.stop('Memory');
+            this.scene.resume();
+          },
+        } satisfies MemoryData);
+      }, 170, 32);
     }
     const house = s.stats['house'];
     const total = playMs(s, Object.keys(s.stats));
