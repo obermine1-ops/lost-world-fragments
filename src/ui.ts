@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { setMuted, sfx } from './sound';
+import { setSoundMode, sfx, soundMode, type SoundMode } from './sound';
 
 export const FONT = 'sans-serif';
 const FADE_MS = 400;
@@ -50,12 +50,13 @@ export function addButton(
   return button;
 }
 
-// 소리 켜기/끄기 버튼 (설정은 기기에 기억)
+// 소리 버튼: 누를 때마다 소리 켜짐 → 효과음만(음악 끔, 음악 파일도 안 받음) → 소리 꺼짐. 설정은 기기에 기억.
+const SOUND_LABEL: Record<SoundMode, string> = { all: '소리 켜짐', sfx: '효과음만', off: '소리 꺼짐' };
+const SOUND_NEXT: Record<SoundMode, SoundMode> = { all: 'sfx', sfx: 'off', off: 'all' };
 export function addMuteButton(scene: Phaser.Scene, x: number, y: number) {
-  const label = () => (scene.game.sound.mute ? '소리 꺼짐' : '소리 켜짐');
-  const button = addButton(scene, x, y, label(), () => {
-    setMuted(scene.game, !scene.game.sound.mute);
-    (button.list[1] as Phaser.GameObjects.Text).setText(label());
+  const button = addButton(scene, x, y, SOUND_LABEL[soundMode()], () => {
+    setSoundMode(scene.game, SOUND_NEXT[soundMode()]);
+    (button.list[1] as Phaser.GameObjects.Text).setText(SOUND_LABEL[soundMode()]);
   }, 84, 32);
   return button;
 }

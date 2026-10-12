@@ -56,6 +56,14 @@ export function installAutoplay(game: Phaser.Game) {
   }, 100);
   void timer;
 
+  // 화면 갱신 감시: 미리보기 창이 가려지면 브라우저가 게임을 멈춰 봇이 실패한다 (게임 버그와 구분하려고 기록)
+  let stalledSeconds = 0;
+  let lastFrame = game.loop.frame;
+  setInterval(() => {
+    if (speed !== 1 && game.loop.frame - lastFrame < 20) stalledSeconds++;
+    lastFrame = game.loop.frame;
+  }, 1000);
+
   async function waitGame() {
     await waitFor(() => active('Game') && !!g()?.player && !g().leaving && g().mapObjects.length > 0, 20000, '지역 시작');
     await sleep(400);
@@ -211,6 +219,7 @@ export function installAutoplay(game: Phaser.Game) {
   async function run(options: { speed?: number } = {}) {
     speed = options.speed ?? 3;
     t0 = performance.now();
+    stalledSeconds = 0;
     log.length = 0;
     marks.length = 0;
     try {
@@ -247,6 +256,7 @@ export function installAutoplay(game: Phaser.Game) {
       return report(true);
     } catch (e) {
       note(`❌ ${(e as Error).message}`);
+      if (stalledSeconds > 0) note(`⚠ 화면 갱신이 ${stalledSeconds}초 동안 거의 멈춤 — 창이 가려진 환경 문제일 수 있음`);
       return report(false);
     } finally {
       speed = 1;
@@ -259,7 +269,7 @@ export function installAutoplay(game: Phaser.Game) {
       const end = marks[i + 1]?.at ?? performance.now();
       return `${m.label}: ${(((end - m.at) / 1000) * speed).toFixed(0)}초`;
     });
-    return { ok, realSeconds: Math.round(total), estimatedBotSeconds: Math.round(total * speed), perRegion, log: [...log] };
+    return { ok, realSeconds: Math.round(total), estimatedBotSeconds: Math.round(total * speed), stalledSeconds, perRegion, log: [...log] };
   }
 
   Object.assign(window, { autoplay: { run } });
