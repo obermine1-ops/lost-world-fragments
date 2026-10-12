@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FONT, addButton, fadeIn, fadeTo } from '../ui';
 import { game } from '../state';
-import { regionsOf, seasonOf, type Season } from '../regions';
+import { SEASONS, regionsOf, seasonOf, type Season } from '../regions';
 import { RARE_ITEMS } from '../items';
 import { music } from '../sound';
 import { saveGame } from '../save';
@@ -9,8 +9,9 @@ import { saveGame } from '../save';
 const NEXT: Partial<Record<Season, { season: Season; map: string; label: string }>> = {
   spring: { season: 'summer', map: 'beach-e', label: '여름으로' },
   summer: { season: 'autumn', map: 'maple-h', label: '가을로' },
+  autumn: { season: 'winter', map: 'snow-k', label: '겨울로' },
 };
-const ORDINAL: Record<Season, string> = { spring: '첫', summer: '두', autumn: '세' };
+const ORDINAL: Record<Season, string> = { spring: '첫', summer: '두', autumn: '세', winter: '네' };
 
 // 계절 하나를 되찾은 뒤의 요약 화면. 다음 계절이 있으면 이어서 갈 수 있다.
 export class EndScene extends Phaser.Scene {
@@ -74,13 +75,30 @@ export class EndScene extends Phaser.Scene {
       return;
     }
 
+    // 네 계절을 모두 되찾았다면: 최종 엔딩 → 크레딧
+    const allDone = SEASONS.every((sea) => regionsOf(sea.key).every((r) => s.restored.includes(r.key)));
+    if (allDone) {
+      this.add
+        .text(width / 2, height * 0.64, '✿  ☀  ✾  ❄\n모든 계절을 되찾았다', {
+          fontFamily: FONT,
+          fontSize: '16px',
+          color: '#ffe9a8',
+          align: 'center',
+          lineSpacing: 8,
+        })
+        .setOrigin(0.5);
+    }
     const hint = this.add
-      .text(width / 2, height * 0.78, '화면을 탭하면 처음으로', { fontFamily: FONT, fontSize: '16px', color: '#999999' })
+      .text(width / 2, height * 0.8, allDone ? '화면을 탭하면 크레딧' : '화면을 탭하면 처음으로', {
+        fontFamily: FONT,
+        fontSize: '16px',
+        color: '#999999',
+      })
       .setOrigin(0.5);
     this.tweens.add({ targets: hint, alpha: 0.3, duration: 900, yoyo: true, repeat: -1 });
     // 페이드인이 끝난 뒤부터 탭을 받아서, 이전 화면의 탭이 바로 넘어가지 않게 한다.
     this.time.delayedCall(500, () => {
-      this.input.once('pointerup', () => fadeTo(this, 'Title'));
+      this.input.once('pointerup', () => fadeTo(this, allDone ? 'Credits' : 'Title'));
     });
   }
 }

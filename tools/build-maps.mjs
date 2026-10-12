@@ -31,6 +31,8 @@ const ISLANDS = {
   mud: ['floor', [319, 320, 321, 341, 342, 343, 363, 364, 365]], // 유적 바닥의 짙은 흙
   sea: ['water', [0, 1, 2, 28, 29, 30, 56, 57, 58]], // 모래사장의 바다
   cliff: ['field', [0, 1, 2, 5, 6, 7, 10, 11, 12]], // 주황 절벽 언덕 (걸어서 오를 수 없음)
+  snowcliff: ['field', [60, 61, 62, 65, 66, 67, 70, 71, 72]], // 눈 언덕·눈벽
+  ice: ['water', [13, 14, 15, 41, 42, 43, 69, 70, 71]], // 얼어붙은 호수
 };
 // 바탕 땅 (지도마다 고른다): 풀밭 / 유적의 흙바닥
 const BASES = {
@@ -38,6 +40,7 @@ const BASES = {
   earth: ['floor', [429, 429, 429, 429, 429, 430, 431, 432, 433]],
   sand: ['floor', [110, 110, 110, 110, 110, 111, 112, 113, 114]],
   leaves: ['field', [3, 3, 3, 4, 8, 9]], // 낙엽 덮인 가을 땅
+  snow: ['field', [63, 63, 63, 64, 68, 69]], // 눈 덮인 겨울 땅
 };
 // 여러 칸짜리 유적 구조물 (TilesetVillageAbandoned) — 행 단위 그림 번호
 const RUINS = {
@@ -58,12 +61,15 @@ const TREES = {
   pine: [2, 3, 26, 27],
   olive: [18, 19, 42, 43], // 노랗게 물든 나무
   dead: [4, 5, 28, 29],
+  snowpine: [10, 11, 34, 35], // 눈 쌓인 소나무
+  snowround: [12, 13, 36, 37],
 };
 // 3×3 큰 나무 (윗줄 → 아랫줄)
 const BIG_TREES = {
   cherry: [432, 433, 434, 456, 457, 458, 480, 481, 482],
   green: [435, 436, 437, 459, 460, 461, 483, 484, 485],
   maple: [441, 442, 443, 465, 466, 467, 489, 490, 491], // 큰 단풍나무
+  snow: [438, 439, 440, 462, 463, 464, 486, 487, 488], // 큰 눈나무
 };
 const LEAF_PILES = [276, 277, 300, 301];
 const CRYSTALS = [336, 337, 338, 339];
@@ -200,8 +206,15 @@ class MapBuilder {
   }
 
   // 앵무새 심부름: 절벽 아래 (x, y)에 깃털 표시, 절벽 위 (tx, ty)에 물건. reward: 'gem' 또는 희귀 아이템 id
-  perch(x, y, tx, ty, reward) {
-    this.point('perch', x, y, { id: `${this.name}-perch-${x}-${y}`, reward, tx: String(tx * TILE + TILE / 2), ty: String(ty * TILE + TILE / 2) });
+  // pet: 'parrot'(절벽 위로 날아감) / 'hamster'(눈벽 속 좁은 굴로 들어감)
+  perch(x, y, tx, ty, reward, pet = 'parrot') {
+    this.point('perch', x, y, { id: `${this.name}-perch-${x}-${y}`, reward, pet, tx: String(tx * TILE + TILE / 2), ty: String(ty * TILE + TILE / 2) });
+  }
+
+  // 사방이 눈벽으로 막힌 작은 공간 (안쪽은 걸어서 못 들어간다 — 햄스터만)
+  pocket(x, y, w, h) {
+    this.area('snowcliff', x, y, w, h);
+    this.area('grass', x + 1, y + 1, w - 2, h - 2);
   }
 
   // 시든 나무가 길을 막는 칸 범위. region 지역이 복원되면 사라진다.
@@ -285,7 +298,7 @@ class MapBuilder {
         const row = same(0, -1) ? (same(0, 1) ? 1 : 2) : 0;
         const [set, ids] = ISLANDS[kind];
         this.ground[this.i(x, y)] = gid(set, ids[row * 3 + col]);
-        if (kind === 'pond' || kind === 'sea' || kind === 'cliff') this.block(x, y);
+        if (['pond', 'sea', 'cliff', 'snowcliff', 'ice'].includes(kind)) this.block(x, y);
       }
   }
 
@@ -699,13 +712,16 @@ function towerJ() {
   const m = new MapBuilder('tower-j', '바람의 언덕', W, H, 20261032, { base: 'leaves' });
 
   m.area('cliff', 6, 6, 12, 8); // 큰 언덕
-  m.border('dead', { bottom: [10, 13] });
+  m.border('dead', { bottom: [10, 13], top: [10, 13] });
   for (const [x, y] of [[4, 20], [20, 24]]) m.bigTree('maple', x, y);
   m.stamp('ruins', RUINS.thinPillar, 3, 27, 2);
   m.stamp('ruins', RUINS.thinPillar, 19, 28, 2);
 
   m.point('from-harvest-i', 11, H - 4);
   m.exit(10, H - 1, 4, 1, 'harvest-i', 'from-tower-j');
+  m.point('from-snow-k', 11, 4);
+  m.exit(10, 0, 4, 1, 'snow-k', 'from-tower-j');
+  m.barrier(10, 2, 4, 2, { id: 'tower-north', unlock: 'restore:tower-j', look: 'dead-tree' });
   m.treasures({ fragment: [19, 17], altar: [11, 17] });
   m.perch(8, 15, 8, 9, 'gem');
   m.perch(16, 15, 15, 8, 'maple-letter');
@@ -718,8 +734,97 @@ function towerJ() {
   return m;
 }
 
+// ══ 겨울 ═══════════════════════════════════════════════════
+
+// ── 눈 덮인 숲 K ──────────────────────────────────────────
+// 바람의 언덕 북쪽. 햄스터를 만나고, 작은 눈벽 속 공간에서 처음으로 굴 심부름을 해 본다.
+function snowK() {
+  const W = 26;
+  const H = 38;
+  const m = new MapBuilder('snow-k', '눈 덮인 숲', W, H, 20261040, { base: 'snow' });
+
+  m.pocket(17, 20, 5, 5); // 눈벽 속 공간 (가운데에 우표 앨범)
+  m.border('snowpine', { top: [11, 14], bottom: [11, 14] });
+  for (const [x, y] of [[5, 7], [20, 8], [4, 30], [21, 33]]) m.bigTree('snow', x, y);
+  const trees = [['snowround', 9, 14], ['snowpine', 3, 19], ['snowround', 15, 28], ['snowpine', 22, 16]];
+  for (const [kind, x, y] of trees) m.tree(kind, x, y);
+
+  m.point('from-tower-j', 12, 34);
+  m.point('from-lake-l', 12, 4);
+  m.exit(11, H - 1, 4, 1, 'tower-j', 'from-snow-k');
+  m.exit(11, 0, 4, 1, 'lake-l', 'from-snow-k');
+  m.barrier(11, 2, 4, 2, { id: 'snow-north', unlock: 'restore:snow-k', look: 'dead-tree' });
+  m.point('pet', 6, 23, { kind: 'hamster' });
+  m.treasures({ gem: [3, 11], fragment: [22, 12], altar: [13, 17] });
+  m.perch(19, 26, 19, 22, 'stamp', 'hamster');
+  m.fireflies([[2, 3], [23, 3], [23, 25]]);
+
+  const keepClear = (x, y) => x >= 10 && x <= 15;
+  m.scatter(ROCKS, 8, true, keepClear);
+  m.scatter(BUSHES, 6, true, keepClear);
+  m.paintGround();
+  return m;
+}
+
+// ── 얼어붙은 호수 L ───────────────────────────────────────
+// 꽁꽁 언 호수를 빙 둘러 가는 곳. 보석은 눈벽 속 — 햄스터가 가져와야 한다.
+function lakeL() {
+  const W = 30;
+  const H = 40;
+  const m = new MapBuilder('lake-l', '얼어붙은 호수', W, H, 20261041, { base: 'snow' });
+
+  m.area('ice', 6, 13, 18, 11); // 얼어붙은 호수
+  m.pocket(22, 28, 5, 5); // 눈벽 속 공간 (보석)
+  m.border('snowpine', { top: [13, 16], bottom: [13, 16] });
+  for (const [x, y] of [[4, 7], [25, 8], [5, 33]]) m.bigTree('snow', x, y);
+  const trees = [['snowround', 10, 30], ['snowpine', 17, 8], ['snowround', 3, 26]];
+  for (const [kind, x, y] of trees) m.tree(kind, x, y);
+
+  m.point('from-snow-k', 14, 36);
+  m.point('from-peak-m', 14, 4);
+  m.exit(13, H - 1, 4, 1, 'snow-k', 'from-lake-l');
+  m.exit(13, 0, 4, 1, 'peak-m', 'from-lake-l');
+  m.barrier(13, 2, 4, 2, { id: 'lake-north', unlock: 'restore:lake-l', look: 'dead-tree' });
+  m.treasures({ fragment: [26, 18], altar: [14, 27] });
+  m.perch(24, 34, 24, 30, 'gem', 'hamster');
+  m.dig(3, 18, 'snow-card');
+  m.fireflies([[2, 3], [27, 3], [2, 36]]);
+
+  const keepClear = (x, y) => x >= 12 && x <= 17;
+  m.scatter(ROCKS, 8, true, keepClear);
+  m.scatter(BUSHES, 6, true, keepClear);
+  m.paintGround();
+  return m;
+}
+
+// ── 별빛 언덕 M ───────────────────────────────────────────
+// 마지막 장소. 눈 언덕 꼭대기 아래 제단에서, 모든 계절의 기억이 하나로 이어진다.
+function peakM() {
+  const W = 24;
+  const H = 32;
+  const m = new MapBuilder('peak-m', '별빛 언덕', W, H, 20261042, { base: 'snow' });
+
+  m.area('snowcliff', 7, 4, 10, 6); // 언덕 꼭대기
+  m.pocket(2, 14, 5, 5); // 눈벽 속 공간 (보석)
+  m.pocket(17, 14, 5, 5); // 눈벽 속 공간 (별 트로피)
+  m.border('snowpine', { bottom: [10, 13] });
+  for (const [x, y] of [[5, 27], [19, 27]]) m.bigTree('snow', x, y);
+
+  m.point('from-lake-l', 11, H - 4);
+  m.exit(10, H - 1, 4, 1, 'lake-l', 'from-peak-m');
+  m.treasures({ fragment: [11, 22], altar: [11, 12] });
+  m.perch(4, 20, 4, 16, 'gem', 'hamster');
+  m.perch(19, 20, 19, 16, 'star-cup', 'hamster');
+  m.fireflies([[2, 3], [21, 3], [21, 24]]);
+
+  const keepClear = (x, y) => (x >= 9 && x <= 14) || y === 20 || y === 21;
+  m.scatter(ROCKS, 6, true, keepClear);
+  m.paintGround();
+  return m;
+}
+
 mkdirSync('public/maps', { recursive: true });
-for (const map of [meadowA(), forestB(), hillC(), ruinsD(), beachE(), villageF(), islandG(), mapleH(), harvestI(), towerJ()]) {
+for (const map of [meadowA(), forestB(), hillC(), ruinsD(), beachE(), villageF(), islandG(), mapleH(), harvestI(), towerJ(), snowK(), lakeL(), peakM()]) {
   writeFileSync(`public/maps/${map.name}.json`, JSON.stringify(map.toTiled()));
   console.log(`public/maps/${map.name}.json (${map.width}×${map.height})`);
 }

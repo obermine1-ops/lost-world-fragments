@@ -12,9 +12,9 @@ type AnyScene = any;
 // 계절의 마지막 지역을 복원해 요약 화면까지 간 경우 (그 지역의 남은 순서는 건너뛴다)
 class SeasonEnded extends Error {}
 
-const ROUTE = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j'];
+const ROUTE = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j', 'snow-k', 'lake-l', 'peak-m'];
 // 계절의 첫 지역 → 앞 계절 요약 화면에서 누를 버튼
-const SEASON_START: Record<string, string> = { 'beach-e': '여름으로', 'maple-h': '가을로' };
+const SEASON_START: Record<string, string> = { 'beach-e': '여름으로', 'maple-h': '가을로', 'snow-k': '겨울로' };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const prop = (o: Obj, k: string) => (o.properties as { name: string; value: string }[] | undefined)?.find((p) => p.name === k)?.value;
@@ -139,9 +139,9 @@ export function installAutoplay(game: Phaser.Game) {
     // 1) 동물 친구
     for (const o of of('pet')) {
       const kind = prop(o, 'kind') ?? 'raccoon';
-      if (kind === 'frog' ? s.frog : kind === 'parrot' ? s.parrot : s.pet) continue;
+      if (kind === 'frog' ? s.frog : kind === 'parrot' ? s.parrot : kind === 'hamster' ? s.hamster : s.pet) continue;
       await walkTo(o.x!, o.y!, `동물(${kind})`);
-      const joined = () => (kind === 'frog' ? s.frog : kind === 'parrot' ? s.parrot : s.pet);
+      const joined = () => (kind === 'frog' ? s.frog : kind === 'parrot' ? s.parrot : kind === 'hamster' ? s.hamster : s.pet);
       await waitFor(joined, 5000, `동물 합류(${kind})`);
       note(`동물 합류: ${kind}`);
     }
@@ -243,7 +243,7 @@ export function installAutoplay(game: Phaser.Game) {
         }
       }
       await waitFor(() => active('End'), 20000, '마지막 요약 화면');
-      note('✅ 가을 엔딩까지 완주');
+      note('✅ 겨울(최종) 엔딩까지 완주');
       return report(true);
     } catch (e) {
       note(`❌ ${(e as Error).message}`);

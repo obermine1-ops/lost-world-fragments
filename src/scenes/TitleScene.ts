@@ -44,6 +44,12 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
 
     const saved = loadGame();
+    // 네 계절을 모두 되찾은 기록이 있으면 타이틀에 표시
+    if (saved && SEASONS.every((sea) => regionsOf(sea.key).every((r) => saved.restored.includes(r.key)))) {
+      this.add
+        .text(width / 2, height * 0.56, '✿  ☀  ✾  ❄  모든 계절을 되찾았다', { fontFamily: FONT, fontSize: '13px', color: '#ffe9a8' })
+        .setOrigin(0.5);
+    }
     if (!saved) {
       addButton(this, width / 2, height * 0.72, '시작', () => this.startNew());
       return;
@@ -60,7 +66,7 @@ export class TitleScene extends Phaser.Scene {
     const next = seasons.find((season, i) => i > 0 && done(seasons[i - 1]) && !done(season));
     if (next && !regionsOf(next).some((r) => r.key === saved.map)) {
       const first = regionsOf(next)[0];
-      const label = { spring: '', summer: '바닷가로 바로 가기', autumn: '단풍 숲으로 바로 가기' }[next];
+      const label = { spring: '', summer: '바닷가로 바로 가기', autumn: '단풍 숲으로 바로 가기', winter: '눈 덮인 숲으로 바로 가기' }[next];
       addButton(this, width / 2, height * 0.76, label, () => {
         game.state = { ...saved, map: first.key, x: undefined, y: undefined };
         fadeTo(this, 'Game');

@@ -32,6 +32,11 @@ export const FURNITURE: Furniture[] = [
   { id: 'pumpkin', name: '호박 등불', sheet: 'element-sheet', frames: [34], from: 'tower-j' },
   { id: 'candles', name: '가을 촛대', sheet: 'element-sheet', frames: [2], from: 'season:autumn' },
   { id: 'rug', name: '푸른 러그', sheet: 'element-sheet', frames: [166], from: 'fireflies:autumn' },
+  { id: 'teacup', name: '따뜻한 찻잔', sheet: 'element-sheet', frames: [161], from: 'snow-k' },
+  { id: 'stove', name: '작은 난로', sheet: 'element-sheet', frames: [33], from: 'lake-l' },
+  { id: 'snow-bed', name: '눈꽃 침대', sheet: 'bed-sheet', frames: [89, 103], from: 'peak-m' },
+  { id: 'chestnut-pot', name: '군밤 냄비', sheet: 'element-sheet', frames: [21], from: 'season:winter' },
+  { id: 'snow-bowl', name: '눈꽃 그릇', sheet: 'element-sheet', frames: [10], from: 'fireflies:winter' },
 ];
 
 // 방에 놓을 수 있는 것 = 가구 + 도감의 보석·희귀 아이템 (전시품)
@@ -80,11 +85,13 @@ export const WALLPAPERS = [
   { name: '갈색 벽', base: 60, from: 'summer' },
   { name: '초록 벽', base: 65, from: 'autumn' },
 ];
+// 겨울을 되찾으면: 벽지는 4종이 끝이라 대신 바닥 한 가지가 더 생긴다.
 export const FLOORS = [
   { name: '나무 마루', frame: 287 },
   { name: '베이지 타일', frame: 34, from: 'spring' },
   { name: '초록 돌바닥', frame: 170, from: 'summer' },
   { name: '짙은 원목', frame: 302, from: 'autumn' },
+  { name: '눈꽃 타일', frame: 63, from: 'winter' },
 ];
 
 export function unlockedStyles<T extends { from?: string }>(list: T[], s: GameState) {

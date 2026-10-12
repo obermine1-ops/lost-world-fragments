@@ -9,10 +9,11 @@ export interface GameState {
   gems: string[];
   // 색이 돌아온 지역
   restored: string[];
-  // 너구리 / 개구리 / 앵무새가 동료가 되었는지
+  // 너구리 / 개구리 / 앵무새 / 햄스터가 동료가 되었는지
   pet: boolean;
   frog: boolean;
   parrot: boolean;
+  hamster: boolean;
   // 이미 파 본 흙더미 / 찾은 희귀 아이템
   dug: string[];
   items: string[];
@@ -28,10 +29,10 @@ export interface GameState {
 }
 
 export const FIRST_MAP = 'meadow-a';
-export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j'] as const;
+export const MAPS = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f', 'island-g', 'maple-h', 'harvest-i', 'tower-j', 'snow-k', 'lake-l', 'peak-m'] as const;
 
 export function newGame(): GameState {
-  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, parrot: false, dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0 };
+  return { map: FIRST_MAP, fragments: [], gems: [], restored: [], pet: false, frog: false, parrot: false, hamster: false, dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0 };
 }
 
 export const game = { state: newGame() };

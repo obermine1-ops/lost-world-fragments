@@ -7,7 +7,7 @@ export interface Memory {
   lines: string[];
 }
 
-export type Season = 'spring' | 'summer' | 'autumn';
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 
 export interface Region {
   key: string;
@@ -198,6 +198,61 @@ export const REGIONS: Region[] = [
       ],
     },
   },
+  {
+    key: 'snow-k',
+    season: 'winter',
+    gem: 'purple',
+    gemTint: 0xe6f0ff,
+    gemName: '눈꽃빛',
+    gemColor: 0xdfeaff,
+    pairs: 4,
+    memory: {
+      face: 'princess',
+      name: '여동생',
+      lines: [
+        '첫눈이 내린 아침, 여동생과 마당으로 뛰어나갔다.',
+        '눈싸움을 하다 둘 다 눈밭에 벌러덩 누워 버렸다.',
+        '"저기 봐! 하늘에서 별이 내려오는 것 같아."',
+      ],
+    },
+  },
+  {
+    key: 'lake-l',
+    season: 'winter',
+    gem: 'green',
+    gemTint: 0xa8e6ff,
+    gemName: '얼음빛',
+    gemColor: 0x9fdcff,
+    pairs: 5,
+    memory: {
+      face: 'child',
+      name: '옆집 친구',
+      lines: [
+        '얼어붙은 호수에서 옆집 친구와 썰매를 탔다.',
+        '봄 숲에서 길을 잃었던 나를 찾아 준, 그 친구였다.',
+        '"봐, 겨울에도 우리는 같이 있잖아."',
+      ],
+    },
+  },
+  {
+    key: 'peak-m',
+    season: 'winter',
+    gem: 'yellow',
+    gemTint: 0xfff4b0,
+    gemName: '별빛',
+    gemColor: 0xfff09a,
+    pairs: 6,
+    memory: {
+      face: 'hero',
+      name: '모든 계절의 나',
+      lines: [
+        '별빛 언덕에서 지나온 계절들을 떠올렸다.',
+        '할머니의 화관, 바다의 노래, 낙엽 속 고구마, 눈 속의 웃음.',
+        '잃어버린 줄 알았던 것들은 모두 내 안에 있었다.',
+        '이제 나는 기억한다. 그래서 세상은 다시 빛난다.',
+      ],
+    },
+  },
 ];
 
 // entry: 이 계절로 가는 길 안내 (앞 계절을 다 되찾은 뒤의 목표 문구)
@@ -233,6 +288,17 @@ export const SEASONS: { key: Season; name: string; entry: string; ending: string
       '바람이 낙엽을 굴리며 오래된 노래를 부른다.',
       '이제 남은 건 하얗게 잠든 겨울뿐.',
       '친구들과 함께라면, 마지막 계절도 되찾을 수 있다.',
+    ],
+  },
+  {
+    key: 'winter',
+    name: '겨울',
+    entry: '목표: 바람의 언덕 북쪽 길을 따라 눈 덮인 숲으로',
+    ending: [
+      '하얀 겨울에도 색이 돌아왔다.',
+      '봄, 여름, 가을, 겨울. 모든 계절이 다시 흐르기 시작한다.',
+      '잊고 싶었던 슬픔도, 잊고 싶지 않았던 사랑도',
+      '이제는 둘 다 소중히 안고 걸어갈 수 있다.',
     ],
   },
 ];
