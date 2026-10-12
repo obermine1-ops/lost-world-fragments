@@ -178,17 +178,17 @@ await check('백업 코드 (내보내기 → 불러오기 같음, 망가진 코�
   }, fullState({ fish: { crucian: 2 }, bond: { frog: 9 } })),
 );
 
-await check('도감 탭 (봄·여름·가을·겨울·물고기·기록)', async () =>
+await check('도감 탭 (봄·여름·가을·겨울·물고기·친구·기록)', async () =>
   run(async (st) => {
     window.progress.state = st;
-    for (const season of ['spring', 'summer', 'autumn', 'winter', 'fish', 'stats']) {
+    for (const season of ['spring', 'summer', 'autumn', 'winter', 'fish', 'friends', 'stats']) {
       window.game.scene.getScenes(true).forEach((s) => s.scene.key !== 'Audio' && s.scene.stop());
       await new Promise((r) => setTimeout(r, 150));
       window.game.scene.start('Collection', { season, onClose() {} });
       await new Promise((r) => setTimeout(r, 300));
       if (!window.game.scene.isActive('Collection')) throw new Error(`${season} 탭이 안 열림`);
     }
-    return '6개 탭';
+    return '7개 탭';
   }, fullState()),
 );
 

@@ -5,12 +5,16 @@ import { CAVE_DONE, CAVE_ENDING, REGIONS, SEASONS, firefliesOf, regionsOf, type 
 import { mapTitle } from './WorldMapScene';
 import { RARE_ITEMS } from '../items';
 import { FISH } from '../fish';
+import { MAX_HEARTS, PET_NAMES, PET_STORIES, heartBar, heartsOf } from '../bond';
+import { PET_TEXTURE, type PetKind } from '../pet';
 import type { MemoryData } from './MemoryScene';
 import { isComplete } from '../furniture';
 
+type Page = Season | 'fish' | 'friends' | 'stats';
+
 export interface CollectionData {
   onClose: () => void;
-  season?: Season | 'stats' | 'fish'; // 'stats' = 플레이 기록 탭, 'fish' = 물고기
+  season?: Page; // 계절 탭 · 'fish' 물고기 · 'friends' 친구 · 'stats' 플레이 기록
 }
 
 const SLOT = 56;
@@ -35,17 +39,18 @@ export class CollectionScene extends Phaser.Scene {
     if (isComplete(s))
       this.add.text(width - 20, 34, '★ 완전 수집', { fontFamily: FONT, fontSize: '12px', color: '#ffb3e6' }).setOrigin(1, 0.5);
 
-    // 탭: 봄 / 여름 / 가을 / 겨울 / 기록
-    const tabs: { key: Season | 'stats' | 'fish'; name: string }[] = [
+    // 탭: 봄 / 여름 / 가을 / 겨울 / 물고기 / 친구 / 기록
+    const tabs: { key: Page; name: string }[] = [
       ...SEASONS.map((sea) => ({ key: sea.key, name: sea.name })),
       { key: 'fish', name: '물고기' },
+      { key: 'friends', name: '친구' },
       { key: 'stats', name: '기록' },
     ];
     tabs.forEach((t, i) => {
-      const x = width / 2 + (i - (tabs.length - 1) / 2) * 58;
+      const x = width / 2 + (i - (tabs.length - 1) / 2) * 50;
       const tab = addButton(this, x, 72, t.name, () => {
         if (t.key !== page) this.scene.restart({ ...data, season: t.key });
-      }, 54, 30);
+      }, 47, 30);
       if (t.key !== page) tab.setAlpha(0.5);
     });
     const close = () =>
@@ -60,6 +65,11 @@ export class CollectionScene extends Phaser.Scene {
     }
     if (page === 'fish') {
       this.showFish();
+      close();
+      return;
+    }
+    if (page === 'friends') {
+      this.showFriends();
       close();
       return;
     }
@@ -202,6 +212,46 @@ export class CollectionScene extends Phaser.Scene {
       if (text) this.info.setText(text);
     });
     return img;
+  }
+
+  // 친구: 함께 다니는 동물의 모습과 마음(하트), 마음이 가득 차면 이야기 다시 보기
+  private showFriends() {
+    const { width } = this.scale;
+    const s = game.state;
+    const met: Record<PetKind, boolean> = { raccoon: s.pet, frog: s.frog, parrot: s.parrot, hamster: s.hamster };
+    (['raccoon', 'frog', 'parrot', 'hamster'] as const).forEach((kind, i) => {
+      const y = 140 + i * 104;
+      const box = this.add.rectangle(width / 2, y, width - 40, 92, 0x2a2738).setStrokeStyle(2, met[kind] ? 0xd8c9a3 : 0x45405a);
+      void box;
+      const pet = this.add.sprite(64, y, PET_TEXTURE[kind], 0).setScale(4);
+      if (!met[kind]) {
+        pet.setTintFill(MISSING_TINT);
+        this.add.text(110, y, '아직 만나지 못한 친구', { fontFamily: FONT, fontSize: '14px', color: '#5a5470' }).setOrigin(0, 0.5);
+        return;
+      }
+      pet.play({ key: `${PET_TEXTURE[kind]}-walk`, frameRate: 3 });
+      const hearts = heartsOf(s, kind);
+      this.add.text(110, y - 22, PET_NAMES[kind], { fontFamily: FONT, fontSize: '16px', color: '#ffffff' });
+      this.add.text(110, y + 2, heartBar(hearts), { fontFamily: FONT, fontSize: '16px', color: '#ff7aa2' });
+      if (hearts >= MAX_HEARTS) {
+        addButton(this, width - 80, y + 10, '이야기', () => {
+          const story = PET_STORIES[kind];
+          this.scene.pause();
+          this.scene.launch('Memory', {
+            name: `${PET_NAMES[kind]} 이야기`,
+            portrait: PET_TEXTURE[kind],
+            lines: story.lines,
+            season: story.season,
+            onComplete: () => {
+              this.scene.stop('Memory');
+              this.scene.resume();
+            },
+          } satisfies MemoryData);
+        }, 80, 30);
+      } else {
+        this.add.text(width - 36, y + 10, '쓰다듬어 주세요', { fontFamily: FONT, fontSize: '11px', color: '#a49dc0' }).setOrigin(1, 0.5);
+      }
+    });
   }
 
   // 물고기 도감: 계절마다 둘, 잡은 것은 컬러와 잡은 수

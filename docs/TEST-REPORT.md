@@ -134,3 +134,6 @@
 
 ## 2026-10-13 v30 (친구 이야기)
 - 캡처 확인. `npm run test:features` 13/13, `npm run test:play` ✅ 349초.
+
+## 2026-10-13 v31 (도감 친구 탭)
+- 캡처 확인. `npm run test:features` 13/13, `npm run test:play` ✅ 349초.
