@@ -2,12 +2,25 @@ import Phaser from 'phaser';
 import { FONT, fadeIn } from '../ui';
 import { sfx } from '../sound';
 import { game, statsOf } from '../state';
+import type { Season } from '../regions';
 
 export interface PuzzleData {
   // 짝의 개수. 카드 수는 그 두 배 (Sprint 1은 2쌍 = 4장, Sprint 3에서 늘어난다)
   pairs: number;
+  season?: Season; // 계절마다 규칙이 하나씩 다르다 (RULES)
   onComplete: () => void;
 }
+
+// 계절별 퍼즐 규칙. 힐링 게임이라 실패·시간 제한은 없고, 눈으로 따라갈 수 있게 천천히.
+//   봄: 기본 / 여름 "물결": 처음에 모든 그림을 잠깐 보여 줌 / 가을 "바람": 짝을 맞출 때마다 뒤집힌 카드 두 장이 자리를 바꿈
+//   겨울 "눈보라": 짧게 보여 준 뒤 바람도 분다
+const RULES: Record<Season, { name: string; hint: string; peek: boolean; wind: boolean }> = {
+  spring: { name: '봄', hint: '같은 그림 두 장을 찾아요', peek: false, wind: false },
+  summer: { name: '여름 · 물결', hint: '처음에 잠깐 모든 그림이 보여요. 잘 봐 두세요', peek: true, wind: false },
+  autumn: { name: '가을 · 바람', hint: '짝을 맞출 때마다 바람이 카드 두 장을 바꿔요', peek: false, wind: true },
+  winter: { name: '겨울 · 눈보라', hint: '잠깐 보여 준 뒤, 짝을 맞출 때마다 바람이 불어요', peek: true, wind: true },
+};
+const WIND_MS = 520;
 
 const FLIP_MS = 120;
 const MISMATCH_MS = 700;
@@ -31,6 +44,7 @@ export class PuzzleScene extends Phaser.Scene {
   private opened: Card[] = [];
   private busy = false;
   private onComplete!: () => void;
+  private wind = false;
 
   constructor() {
     super('Puzzle');
@@ -48,6 +62,8 @@ export class PuzzleScene extends Phaser.Scene {
     this.opened = [];
     this.busy = false;
     this.onComplete = data.onComplete;
+    const rule = RULES[data.season ?? 'spring'];
+    this.wind = rule.wind;
 
     // 뒤의 들판을 어둡게 가리고, 그 위를 탭해도 들판이 반응하지 않게 막는다.
     this.add.rectangle(0, 0, width, height, 0x14121f, 0.92).setOrigin(0).setInteractive();
@@ -56,10 +72,44 @@ export class PuzzleScene extends Phaser.Scene {
       .text(width / 2, 70, '흩어진 기억을 맞춰보자', { fontFamily: FONT, fontSize: '20px', color: '#ffffff' })
       .setOrigin(0.5);
     this.add
-      .text(width / 2, 100, '같은 그림 두 장을 찾아요', { fontFamily: FONT, fontSize: '14px', color: '#a9a3c9' })
+      .text(width / 2, 100, rule.hint, { fontFamily: FONT, fontSize: '14px', color: '#a9a3c9' })
       .setOrigin(0.5);
+    if (rule.peek || rule.wind)
+      this.add.text(width / 2, 40, rule.name, { fontFamily: FONT, fontSize: '12px', color: '#d8c9a3' }).setOrigin(0.5);
 
-    this.layoutCards(Math.min(data.pairs, SYMBOLS.length), width, height);
+    const pairs = Math.min(data.pairs, SYMBOLS.length);
+    this.layoutCards(pairs, width, height);
+    if (rule.peek) this.peek(rule.wind ? 1200 + pairs * 150 : 1800 + pairs * 200);
+  }
+
+  // 모든 카드를 잠깐 앞면으로 보여 주고 다시 덮는다. 그동안은 누를 수 없다.
+  private peek(ms: number) {
+    this.busy = true;
+    this.time.delayedCall(450, () => {
+      for (const c of this.cards) this.flip(c, true);
+      this.time.delayedCall(ms, () => {
+        for (const c of this.cards) this.flip(c, false);
+        this.time.delayedCall(FLIP_MS * 2, () => (this.busy = false));
+      });
+    });
+  }
+
+  // 바람: 아직 뒤집히지 않은 카드 두 장이 서로 자리를 바꾼다 (천천히 미끄러져서 눈으로 따라갈 수 있게).
+  private blow() {
+    const hidden = this.cards.filter((c) => !c.matched && !c.faceUp);
+    if (hidden.length < 2) return;
+    const [a, b] = Phaser.Utils.Array.Shuffle([...hidden]).slice(0, 2);
+    this.busy = true;
+    this.time.delayedCall(FLIP_MS * 2 + 250, () => {
+      sfx(this, 'flip', 0.3);
+      const ax = a.container.x;
+      const ay = a.container.y;
+      for (const [card, x, y] of [[a, b.container.x, b.container.y], [b, ax, ay]] as const) {
+        this.tweens.add({ targets: card.container, x, y, duration: WIND_MS, ease: 'Sine.easeInOut' });
+        this.tweens.add({ targets: card.container, angle: { from: 0, to: 8 }, duration: WIND_MS / 2, yoyo: true });
+      }
+      this.time.delayedCall(WIND_MS + 60, () => (this.busy = false));
+    });
   }
 
   private layoutCards(pairs: number, width: number, height: number) {
@@ -124,6 +174,7 @@ export class PuzzleScene extends Phaser.Scene {
       this.celebrate(a);
       this.celebrate(b);
       if (this.cards.every((c) => c.matched)) this.time.delayedCall(500, () => this.finish());
+      else if (this.wind) this.blow();
     } else {
       this.busy = true;
       this.time.delayedCall(MISMATCH_MS, () => {

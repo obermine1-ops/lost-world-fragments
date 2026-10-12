@@ -850,6 +850,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.pause();
     this.scene.launch('Puzzle', {
       pairs: region.pairs,
+      season: region.season,
       onComplete: () => {
         this.scene.stop('Puzzle');
         if (!restore) {

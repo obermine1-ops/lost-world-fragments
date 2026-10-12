@@ -98,6 +98,9 @@ export function installAutoplay(game: Phaser.Game) {
     for (const c of p.cards) (pairs[c.symbol] ??= []).push(c);
     // 사람처럼 한 번 틀려 보고(다시 뒤집히는지 확인), 나머지는 맞춘다.
     const groups = Object.values(pairs);
+    // 여름·겨울은 처음에 그림을 보여 주는 동안 누를 수 없다
+    await sleep(600);
+    await waitFor(() => !p.busy, 15000, '퍼즐 그림 보여 주기');
     if (groups.length > 1) {
       p.onCardTap(groups[0][0]);
       p.onCardTap(groups[1][0]);
