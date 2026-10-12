@@ -6,7 +6,7 @@ const ALL = ['meadow-a', 'forest-b', 'hill-c', 'ruins-d', 'beach-e', 'village-f'
 const fullState = (extra = {}) => ({
   map: 'meadow-a', fragments: ALL, gems: ALL, restored: ALL, pet: true, frog: true, parrot: true, hamster: true,
   dug: [], items: [], opened: [], fireflies: [], house: [], wallpaper: 0, floor: 0,
-  tips: ['goal', 'map', 'collection', 'fishing', 'news-2026-10'], stats: {}, fish: {}, bond: {}, ...extra,
+  tips: ['goal', 'map', 'collection', 'fishing', 'news-2026-10b'], stats: {}, fish: {}, bond: {}, ...extra,
 });
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--mute-audio'] });
@@ -211,7 +211,7 @@ await check('계절 퍼즐 (봄·여름·가을·겨울 그림 6가지씩)', asy
 
 await check('새 소식 (돌아온 사람에게 한 번만)', async () => {
   const st = fullState();
-  st.tips = st.tips.filter((t) => t !== 'news-2026-10');
+  st.tips = st.tips.filter((t) => t !== 'news-2026-10b');
   await startGame(st, 'from-house');
   const first = await run(async () => {
     await new Promise((r) => setTimeout(r, 1300));
