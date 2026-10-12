@@ -131,3 +131,6 @@
 
 ## 2026-10-13 v29 (메시지 차례대로)
 - `npm run test:features` 12/12(메시지 줄 세우기 추가), `npm run test:play` ✅ 350초.
+
+## 2026-10-13 v30 (친구 이야기)
+- 캡처 확인. `npm run test:features` 13/13, `npm run test:play` ✅ 349초.

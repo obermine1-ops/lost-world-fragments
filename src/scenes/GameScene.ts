@@ -15,7 +15,7 @@ import type { CollectionData } from './CollectionScene';
 import { mapTitle, type WorldMapData } from './WorldMapScene';
 import type { FishingData } from './FishingScene';
 import { furnitureFrom, isComplete } from '../furniture';
-import { MAX_HEARTS, heartBar, heartsOf, petPet, bondMessage } from '../bond';
+import { MAX_HEARTS, PET_NAMES, PET_STORIES, heartBar, heartsOf, petPet, bondMessage } from '../bond';
 import { hasPet, prop } from './game/common';
 import { RAINBOW, burstAmbience, createAmbience, sparkle } from './game/ambience';
 import { footprints, guideTarget, unblockers } from './game/guide';
@@ -713,6 +713,19 @@ export class GameScene extends Phaser.Scene {
         this.savePosition();
         this.tweens.add({ targets: sprite, y: sprite.y - 6, duration: 140, yoyo: true, repeat: 1 });
         this.time.delayedCall(500, () => this.showMessage(bondMessage(kind, up)));
+        // 마음이 가득 차면 그 친구의 이야기를 들려준다
+        if (up >= MAX_HEARTS)
+          this.time.delayedCall(2600, () => {
+            if (this.busy || this.leaving) return;
+            this.busy = true;
+            this.stopMoving();
+            this.scene.pause();
+            const story = PET_STORIES[kind];
+            this.showMemory({ name: `${PET_NAMES[kind]} 이야기`, portrait: PET_TEXTURE[kind], lines: story.lines, season: story.season }, () => {
+              this.scene.resume();
+              this.busy = false;
+            });
+          });
       }
     });
     // 마음이 가득 찬 친구는 가끔 스스로 하트를 띄운다

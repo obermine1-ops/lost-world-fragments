@@ -6,6 +6,7 @@ import { RAINBOW, createAmbience } from './game/ambience';
 
 export interface MemoryData {
   face?: string; // 얼굴 그림 키 (없으면 글만)
+  portrait?: string; // 얼굴 대신 액자에 넣을 그림 키 (동물 친구 — 첫 칸을 크게)
   name?: string;
   lines: string[];
   season?: Season; // 그 계절의 빛깔과 입자(꽃잎·햇빛·낙엽·눈)를 뒤에 깐다
@@ -57,9 +58,14 @@ export class MemoryScene extends Phaser.Scene {
     }
 
     let y = height * 0.2;
-    if (data.face) {
+    if (data.face || data.portrait) {
       const frame = this.add.rectangle(width / 2, y + 60, 132, 132, 0xf5efe0).setStrokeStyle(3, 0xd8c9a3);
-      this.add.image(width / 2, y + 60, `face-${data.face}`).setScale(3);
+      if (data.face) this.add.image(width / 2, y + 60, `face-${data.face}`).setScale(3);
+      else {
+        // 동물 친구: 액자 안에서 걷기 그림이 천천히 움직인다
+        const pet = this.add.sprite(width / 2, y + 62, data.portrait!, 0).setScale(6);
+        if (this.anims.exists(`${data.portrait}-walk`)) pet.play({ key: `${data.portrait}-walk`, frameRate: 3 });
+      }
       frame.setAlpha(0.9);
       y += 140;
     }

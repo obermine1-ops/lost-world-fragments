@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { FONT, addButton, fadeIn, fadeTo } from '../ui';
 import { game, statsOf } from '../state';
-import { bondMessage, heartBar, heartsOf, petPet } from '../bond';
-import type { PetKind } from '../pet';
+import { MAX_HEARTS, PET_NAMES, PET_STORIES, bondMessage, heartBar, heartsOf, petPet } from '../bond';
+import type { MemoryData } from './MemoryScene';
+import { PET_TEXTURE, type PetKind } from '../pet';
 import { saveGame } from '../save';
 import { FLOORS, WALLPAPERS, ownedPlaceables, unlockedStyles, type Placeable } from '../furniture';
 import { ambient, music, sfx } from '../sound';
@@ -232,6 +233,22 @@ export class HouseScene extends Phaser.Scene {
     if (up) {
       saveGame(game.state);
       this.hint.setText(bondMessage(kind, up).replace('\n', ' '));
+      // 마음이 가득 차면 그 친구의 이야기 (집 화면은 잠시 멈춤)
+      if (up >= MAX_HEARTS)
+        this.time.delayedCall(1200, () => {
+          this.scene.pause();
+          const story = PET_STORIES[kind];
+          this.scene.launch('Memory', {
+            name: `${PET_NAMES[kind]} 이야기`,
+            portrait: PET_TEXTURE[kind],
+            lines: story.lines,
+            season: story.season,
+            onComplete: () => {
+              this.scene.stop('Memory');
+              this.scene.resume();
+            },
+          } satisfies MemoryData);
+        });
     }
     const heart = this.add.text(sprite.x, sprite.y - 22, heartBar(heartsOf(game.state, kind)), { fontFamily: FONT, fontSize: '14px', color: '#ff7aa2' }).setOrigin(0.5);
     this.tweens.add({ targets: heart, y: heart.y - 20, alpha: 0, duration: 900, onComplete: () => heart.destroy() });

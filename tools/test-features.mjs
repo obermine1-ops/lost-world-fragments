@@ -137,6 +137,19 @@ await check('친구 마음 (쓰다듬기, 연타 방지)', async () => {
   });
 });
 
+await check('친구 이야기 (마음이 가득 차면 기억 장면)', async () => {
+  await startGame(fullState({ bond: { parrot: 29 } }), 'from-house');
+  return run(async () => {
+    const gs = window.game.scene.getScene('Game');
+    gs.pets.find((p) => p.kind === 'parrot').sprite.emit('pointerup');
+    for (let i = 0; i < 50 && !window.game.scene.isActive('Memory'); i++) await new Promise((r) => setTimeout(r, 100));
+    if (!window.game.scene.isActive('Memory')) throw new Error('이야기가 안 열림');
+    const texts = window.game.scene.getScene('Memory').children.list.filter((o) => o.type === 'Text').map((o) => o.text);
+    if (!texts.includes('앵무새 이야기')) throw new Error(`제목: ${texts[0]}`);
+    return '앵무새 이야기';
+  });
+});
+
 await check('나의 집 (친구들이 돌아다님, 상자 쪽 넘기기)', async () => {
   const items = ['pan-flute', 'letter', 'hourglass', 'picture-book', 'flower-seed', 'silver-key', 'old-coin', 'gourd', 'wooden-fish', 'tea-leaf', 'honey', 'maple-letter', 'stamp', 'snow-card', 'star-cup'];
   return run(async (st) => {
