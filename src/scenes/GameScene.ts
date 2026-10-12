@@ -17,7 +17,7 @@ import type { FishingData } from './FishingScene';
 import { furnitureFrom, isComplete } from '../furniture';
 import { MAX_HEARTS, heartBar, heartsOf, petPet, bondMessage } from '../bond';
 import { hasPet, prop } from './game/common';
-import { RAINBOW, createAmbience } from './game/ambience';
+import { RAINBOW, burstAmbience, createAmbience } from './game/ambience';
 import { footprints, guideTarget, unblockers } from './game/guide';
 import { MSG_CAVE_GIFT, MSG_NO_FISH, MSG_TREASURE_EMPTY, NEWS_LINES, NEWS_TIP, SHARDS, shardCount } from './game/texts';
 
@@ -931,6 +931,21 @@ export class GameScene extends Phaser.Scene {
     } satisfies MemoryData);
   }
 
+  // 색이 돌아오는 순간: 제단에서 보석 색 빛의 고리가 세 번 퍼지고, 계절 입자가 팡 터진다. 화면은 아주 살짝 흔들린다.
+  private restoreBurst(region: Region) {
+    const x = this.altar?.x ?? this.player.x;
+    const y = this.altar?.y ?? this.player.y;
+    for (let i = 0; i < 3; i++) {
+      const ring = this.add.circle(x, y, 6).setStrokeStyle(2, region.gemColor, 1).setDepth(DEPTH.above);
+      this.glow.add(ring);
+      this.tweens.add({ targets: ring, radius: 90, alpha: 0, duration: 1600, delay: i * 350, ease: 'Sine.easeOut', onComplete: () => ring.destroy() });
+    }
+    const burst = burstAmbience(this, region.season, x, y);
+    burst.setDepth(DEPTH.above + 1);
+    this.glow.add(burst);
+    this.cameras.main.shake(300, 0.002);
+  }
+
   // 이 지역에 색이 번져 돌아오고, 막혀 있던 다음 길이 열린다. 세 지역을 모두 되찾으면 엔딩.
   private restoreRegion(region: Region) {
     game.state.restored.push(region.key);
@@ -938,6 +953,7 @@ export class GameScene extends Phaser.Scene {
     this.updateHud();
     sfx(this, 'restore', 0.7);
     this.playRegionMusic();
+    this.restoreBurst(region);
     this.color.restore(() => {
       this.startAmbience(region.season, true);
       this.removeBarriers((b) => b.unlock === `restore:${region.key}`);

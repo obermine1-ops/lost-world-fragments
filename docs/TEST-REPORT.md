@@ -116,3 +116,6 @@
 
 ## 2026-10-13 v24 (타이틀 화면)
 - 캡처 2번으로 조정. `npm run test:features` 11/11, `npm run test:play` ✅ 350초.
+
+## 2026-10-13 v25 (색이 돌아오는 순간)
+- 캡처 2번. `npm run test:features` 11/11, `npm run test:play` ✅ 350초.
