@@ -138,7 +138,7 @@ await check('친구 마음 (쓰다듬기, 연타 방지)', async () => {
 });
 
 await check('친구 이야기 (마음이 가득 차면 기억 장면)', async () => {
-  await startGame(fullState({ bond: { parrot: 29 } }), 'from-house');
+  await startGame(fullState({ bond: { parrot: 14 } }), 'from-house');
   return run(async () => {
     const gs = window.game.scene.getScene('Game');
     gs.pets.find((p) => p.kind === 'parrot').sprite.emit('pointerup');

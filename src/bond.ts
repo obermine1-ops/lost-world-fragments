@@ -6,8 +6,8 @@ import type { Season } from './regions';
 // 같은 동물을 연달아 눌러도 COOLDOWN_MS에 한 번만 오르게 해서, 오래 함께 다니며 조금씩 가까워지게 한다.
 export const PET_NAMES: Record<PetKind, string> = { raccoon: '너구리', frog: '개구리', parrot: '앵무새', hamster: '햄스터' };
 export const MAX_HEARTS = 5;
-const POINTS_PER_HEART = 6;
-const COOLDOWN_MS = 5000;
+const POINTS_PER_HEART = 3; // 다섯 칸이면 15번 (2026-10-13 사용자 요청으로 30번 → 15번)
+const COOLDOWN_MS = 3000; // 같은 동물은 3초에 한 번 (5초 → 3초)
 const lastPet: Partial<Record<PetKind, number>> = {};
 
 export function heartsOf(state: GameState, kind: PetKind) {
