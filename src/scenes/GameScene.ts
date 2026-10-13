@@ -97,7 +97,7 @@ export class GameScene extends Phaser.Scene {
   // 제단·받침돌은 늘 컬러라 위쪽 층에 있어서, 그 바로 앞에 선 주인공의 머리를 가린다.
   // 그때만 주인공과 똑같은 그림을 위쪽 층에 겹쳐 그린다 (흑백 지역에서는 그 그림도 흑백).
   private playerEcho!: Phaser.GameObjects.Sprite;
-  private echoGray?: Phaser.FX.ColorMatrix;
+  private echoTexture = 'hero'; // 흑백 지역에서는 미리 만든 흑백 그림 'hero-gray' (PreloadScene)
   private barriers: Barrier[] = [];
   private spots: Spot[] = [];
   // 지도 위 물체 목록 (자동 플레이 테스트가 읽는다)
@@ -190,7 +190,6 @@ export class GameScene extends Phaser.Scene {
     this.world.add(this.player);
     this.playerAnim = new ActorAnimator(this.player, 'hero');
     this.playerEcho = this.add.sprite(start.x, start.y, 'hero', 0).setVisible(false);
-    this.echoGray = this.playerEcho.preFX?.addColorMatrix();
     this.physics.add.existing(this.player);
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     // 발밑만 부딪히게 해서 나무 윗부분 뒤로는 지나갈 수 있게 한다.
@@ -215,7 +214,8 @@ export class GameScene extends Phaser.Scene {
     cam.ignore([this.glow, this.ui]);
     this.color = new WorldColor(this, cam, state.restored.includes(state.map) || !this.region);
     this.glow.add(this.playerEcho);
-    if (this.color.isGray) this.echoGray?.grayscale(1);
+    // 그림 효과(preFX)로 흑백을 만들면 실제 그래픽 장치에서 네모 박스로 그려져서, 흑백 그림을 따로 쓴다
+    this.echoTexture = this.color.isGray ? 'hero-gray' : 'hero';
     if (this.region && state.restored.includes(state.map)) this.startAmbience(this.region.season, false);
     this.ash = undefined;
     if (this.region && !state.restored.includes(state.map)) {
@@ -1008,7 +1008,7 @@ export class GameScene extends Phaser.Scene {
     );
     this.playerEcho.setVisible(front);
     if (!front) return;
-    this.playerEcho.setPosition(p.x, p.y).setFrame(p.frame.name).setFlipX(p.flipX);
+    this.playerEcho.setPosition(p.x, p.y).setTexture(this.echoTexture, p.frame.name).setFlipX(p.flipX);
     sortByY(this.playerEcho);
   }
 
@@ -1042,7 +1042,7 @@ export class GameScene extends Phaser.Scene {
       ash.stop();
       this.tweens.add({ targets: ash, alpha: 0, duration: 1800, onComplete: () => ash.destroy() });
     }
-    this.echoGray?.reset();
+    this.echoTexture = 'hero';
     this.color.restore(() => {
       this.startAmbience(region.season, true);
       this.removeBarriers((b) => b.unlock === `restore:${region.key}`);

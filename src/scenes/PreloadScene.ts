@@ -55,11 +55,32 @@ export class PreloadScene extends Phaser.Scene {
 
   create() {
     this.createActorAnims('hero');
+    this.makeGraySheet('hero');
     // 동물 그림은 옆모습 2프레임 (오른쪽을 보고 있음 — 왼쪽으로 갈 때는 뒤집는다)
     for (const key of ['pet', 'frog', 'parrot', 'hamster'])
       this.anims.create({ key: `${key}-walk`, frames: this.anims.generateFrameNumbers(key, { frames: [0, 1] }), frameRate: 6, repeat: -1 });
     this.scene.launch('Audio'); // 배경 음악은 뒤에서 불러온다
     this.scene.start('Title');
+  }
+
+  // 그림의 흑백 버전을 한 번 만들어 둔다 ('<key>-gray'). 흑백 지역에서 주인공을 겹쳐 그릴 때 쓴다.
+  // (그림 효과로 흑백을 만들면 폰 같은 실제 그래픽 장치에서 투명한 부분까지 네모로 칠해진다)
+  private makeGraySheet(key: string) {
+    const src = this.textures.get(key).getSourceImage() as HTMLImageElement;
+    const canvas = document.createElement('canvas');
+    canvas.width = src.width;
+    canvas.height = src.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(src, 0, 0);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const g = Math.round(d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11);
+      d[i] = d[i + 1] = d[i + 2] = g;
+    }
+    ctx.putImageData(img, 0, 0);
+    this.textures.addSpriteSheet(`${key}-gray`, canvas as unknown as HTMLImageElement, { frameWidth: 16, frameHeight: 16 });
   }
 
   // 캐릭터 그림(4열 × 7행)은 열이 방향(아래·위·왼·오), 1~4행이 걷기 프레임이다.
