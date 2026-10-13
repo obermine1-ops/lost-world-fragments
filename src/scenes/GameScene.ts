@@ -93,6 +93,11 @@ export class GameScene extends Phaser.Scene {
   private busy = false; // 제단 연출·퍼즐 중
   private lastSaveAt = 0;
   private altar?: Phaser.GameObjects.Image;
+  private treasureStone?: Phaser.GameObjects.Image;
+  // 제단·받침돌은 늘 컬러라 위쪽 층에 있어서, 그 바로 앞에 선 주인공의 머리를 가린다.
+  // 그때만 주인공과 똑같은 그림을 위쪽 층에 겹쳐 그린다 (흑백 지역에서는 그 그림도 흑백).
+  private playerEcho!: Phaser.GameObjects.Sprite;
+  private echoGray?: Phaser.FX.ColorMatrix;
   private barriers: Barrier[] = [];
   private spots: Spot[] = [];
   // 지도 위 물체 목록 (자동 플레이 테스트가 읽는다)
@@ -117,6 +122,7 @@ export class GameScene extends Phaser.Scene {
     this.leaving = false;
     this.busy = false;
     this.altar = undefined;
+    this.treasureStone = undefined;
     this.barriers = [];
     this.spots = [];
     this.pets = [];
@@ -183,6 +189,8 @@ export class GameScene extends Phaser.Scene {
     this.player = this.add.sprite(start.x, start.y, 'hero', 0);
     this.world.add(this.player);
     this.playerAnim = new ActorAnimator(this.player, 'hero');
+    this.playerEcho = this.add.sprite(start.x, start.y, 'hero', 0).setVisible(false);
+    this.echoGray = this.playerEcho.preFX?.addColorMatrix();
     this.physics.add.existing(this.player);
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     // 발밑만 부딪히게 해서 나무 윗부분 뒤로는 지나갈 수 있게 한다.
@@ -206,6 +214,8 @@ export class GameScene extends Phaser.Scene {
     follow(cam);
     cam.ignore([this.glow, this.ui]);
     this.color = new WorldColor(this, cam, state.restored.includes(state.map) || !this.region);
+    this.glow.add(this.playerEcho);
+    if (this.color.isGray) this.echoGray?.grayscale(1);
     if (this.region && state.restored.includes(state.map)) this.startAmbience(this.region.season, false);
     this.ash = undefined;
     if (this.region && !state.restored.includes(state.map)) {
@@ -286,6 +296,7 @@ export class GameScene extends Phaser.Scene {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     this.playerAnim.update(body.velocity.x, body.velocity.y);
     sortByY(this.player);
+    this.updatePlayerEcho();
     // 첫 동물은 플레이어를, 다음 동물은 앞 동물을 따라간다.
     this.pets.forEach((pet, i) => {
       pet.update(delta * this.time.timeScale, i === 0 ? body.center : this.pets[i - 1].sprite);
@@ -401,10 +412,13 @@ export class GameScene extends Phaser.Scene {
 
   // 숨은 반딧불: 작게, 가끔씩만 깜빡인다 (구석구석 둘러봐야 보인다)
   private createFirefly(x: number, y: number) {
-    const color = this.region?.season === 'summer' ? 0x9ff7ff : 0xffb3e6;
-    const halo = this.add.circle(0, 0, 5, color, 0.25);
-    const dot = this.add.circle(0, 0, 1.6, 0xffffff);
-    const ff = this.add.container(x, y, [halo, dot]).setAlpha(0.15);
+    const winter = this.region?.season === 'winter';
+    // 겨울은 하얀 눈밭이라 분홍·하양 빛이 묻힌다 → 따뜻한 주황빛에 진한 테두리, 꺼질 때도 살짝 보이게
+    const color = this.region?.season === 'summer' ? 0x9ff7ff : winter ? 0xff9a3c : 0xffb3e6;
+    const halo = this.add.circle(0, 0, winter ? 6 : 5, color, winter ? 0.5 : 0.25);
+    const dot = this.add.circle(0, 0, winter ? 2 : 1.6, winter ? 0xfff1c2 : 0xffffff);
+    if (winter) dot.setStrokeStyle(1, 0x7a3d10, 0.9);
+    const ff = this.add.container(x, y, [halo, dot]).setAlpha(winter ? 0.4 : 0.15);
     ff.setSize(12, 12);
     sortByY(ff);
     this.glow.add(ff);
@@ -534,7 +548,8 @@ export class GameScene extends Phaser.Scene {
           this.collideLayer.removeTileAt(tx, ty);
           this.nav.setBlocked(tx, ty, false);
           const pad = this.add.image(tx * 16 + 8, ty * 16 + 8, 'water-sheet', LILY_PAD).setDepth(DEPTH.decor + 0.4);
-          this.glow.add(pad);
+          // 땅과 같은 층에 둔다: 위쪽(항상 컬러) 층에 두면 그 층이 주인공보다 늘 위에 그려져 다리 위의 주인공이 가려진다
+          this.world.add(pad);
           if (animate) {
             pad.setScale(0).setAlpha(0);
             this.tweens.add({ targets: pad, scale: 1, alpha: 1, duration: 300, delay: (ty - ty0) * 140 + (tx - tx0) * 40, ease: 'Back.easeOut' });
@@ -787,7 +802,7 @@ export class GameScene extends Phaser.Scene {
       kind === 'hamster'
         ? this.add.ellipse(x, y - 4, 9, 6, 0x2a2238).setDepth(DEPTH.decor + 0.5)
         : this.add.image(x, y, 'feather').setDepth(DEPTH.decor + 0.5).setAlpha(0.9);
-    this.glow.add(feather);
+    this.world.add(feather); // 바닥 표시라 땅 층에 (그 위에 선 주인공이 가려지지 않게)
     if (kind !== 'hamster') this.tweens.add({ targets: feather, angle: 12, duration: 700, yoyo: true, repeat: -1 });
 
     const spot = this.addSpot(x, y, TOUCH_REACH + 4, () => {
@@ -804,21 +819,43 @@ export class GameScene extends Phaser.Scene {
       this.busy = true;
       this.stopMoving();
       sfx(this, 'pet', 0.5);
-      parrot.runTo(tx, ty + 2, () => {
-        this.tweens.killTweensOf(icon);
-        feather.destroy();
+      const hole = { x, y: y - 4 };
+      const finish = () => {
         // 물건을 물고 플레이어에게 돌아온다.
-        const carry = () => icon.setPosition(parrot.sprite.x, parrot.sprite.y - 6);
-        this.events.on(Phaser.Scenes.Events.UPDATE, carry);
         const body = this.player.body as Phaser.Physics.Arcade.Body;
         parrot.runTo(body.center.x + 6, body.center.y - 6, () => {
           this.events.off(Phaser.Scenes.Events.UPDATE, carry);
           icon.destroy();
+          feather.destroy();
           game.state.dug.push(id);
           this.revealReward(this.player.x, this.player.y - 8, reward, kind === 'hamster' ? '햄스터가' : '앵무새가');
           this.busy = false;
         });
-      });
+      };
+      const carry = () => icon.setPosition(parrot.sprite.x, parrot.sprite.y - 6);
+      const grab = () => {
+        this.tweens.killTweensOf(icon);
+        this.events.on(Phaser.Scenes.Events.UPDATE, carry);
+      };
+      if (kind === 'hamster') {
+        // 햄스터: 굴 입구로 가서 → 굴 속(흐리게)으로 물건까지 → 같은 길로 입구까지 → 주인공에게
+        parrot.runTo(hole.x, hole.y, () => {
+          parrot.sprite.setAlpha(0.55);
+          parrot.runTo(tx, ty + 2, () => {
+            grab();
+            parrot.runTo(hole.x, hole.y, () => {
+              parrot.sprite.setAlpha(1);
+              finish();
+            });
+          });
+        });
+      } else {
+        // 앵무새: 절벽 위로 곧장 날아가 물고 온다
+        parrot.runTo(tx, ty + 2, () => {
+          grab();
+          finish();
+        });
+      }
     });
   }
 
@@ -964,6 +1001,17 @@ export class GameScene extends Phaser.Scene {
     } satisfies MemoryData);
   }
 
+  private updatePlayerEcho() {
+    const p = this.player;
+    const front = [this.altar, this.treasureStone].some(
+      (o) => o && Math.abs(o.x - p.x) < 14 && p.y > o.y && p.y - o.y < 22,
+    );
+    this.playerEcho.setVisible(front);
+    if (!front) return;
+    this.playerEcho.setPosition(p.x, p.y).setFrame(p.frame.name).setFlipX(p.flipX);
+    sortByY(this.playerEcho);
+  }
+
   // 색이 돌아오는 순간: 제단에서 보석 색 빛의 고리가 세 번 퍼지고, 계절 입자가 팡 터진다. 화면은 아주 살짝 흔들린다.
   private restoreBurst(region: Region) {
     const x = this.altar?.x ?? this.player.x;
@@ -994,6 +1042,7 @@ export class GameScene extends Phaser.Scene {
       ash.stop();
       this.tweens.add({ targets: ash, alpha: 0, duration: 1800, onComplete: () => ash.destroy() });
     }
+    this.echoGray?.reset();
     this.color.restore(() => {
       this.startAmbience(region.season, true);
       this.removeBarriers((b) => b.unlock === `restore:${region.key}`);
@@ -1088,6 +1137,7 @@ export class GameScene extends Phaser.Scene {
   private placeTreasure(x: number, y: number) {
     const done = game.state.opened.includes(CAVE_DONE);
     const stone = this.add.image(x, y, 'dungeon-sheet', done ? ALTAR_FILLED : ALTAR_EMPTY);
+    this.treasureStone = stone;
     sortByY(stone);
     this.glow.add(stone);
     if (done) {
@@ -1452,6 +1502,7 @@ export class GameScene extends Phaser.Scene {
         padding: { x: 16, y: 10 },
         align: 'center',
         lineSpacing: 6,
+        wordWrap: { width: width - 64, useAdvancedWrap: true },
       })
       .setOrigin(0.5)
       .setAlpha(0);
