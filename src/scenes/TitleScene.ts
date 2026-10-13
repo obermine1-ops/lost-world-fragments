@@ -46,6 +46,7 @@ export class TitleScene extends Phaser.Scene {
     ambient(this.game); // 환경 소리는 탐험 화면에서만
     music(this.game, 'quiet');
     addMuteButton(this, width - 52, height - 30);
+    addButton(this, width - 46, 28, '게임 끝내기', () => this.quit(), 78, 26);
     this.add
       .text(12, height - 30, '그림·음악: Ninja Adventure (Pixel-boy & AAA, CC0)', {
         fontFamily: FONT,
@@ -103,6 +104,27 @@ export class TitleScene extends Phaser.Scene {
       }, 180, 40);
     }
     addButton(this, width / 2, height * 0.86, '새로 시작', () => this.confirmNew(), 130, 40);
+  }
+
+  // 게임 끝내기: 기록은 이미 기기에 저장돼 있다. 창 닫기를 시도하고(홈 화면 앱 등에서는 닫힌다),
+  // 브라우저가 막으면 "이제 닫아도 된다"는 화면을 보여 준다. (웹 페이지는 스스로 창을 닫지 못하는 경우가 많다)
+  private quit() {
+    const { width, height } = this.scale;
+    window.close();
+    const dim = this.add.rectangle(0, 0, width, height, 0x0e0c16, 0.94).setOrigin(0).setInteractive().setDepth(20);
+    const text = this.add
+      .text(width / 2, height * 0.42, '오늘도 수고했어요.\n\n기록은 이 기기에 저장되어 있어요.\n이제 이 창(앱)을 닫으면 돼요.', {
+        fontFamily: FONT,
+        fontSize: '16px',
+        color: '#ffffff',
+        align: 'center',
+        lineSpacing: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(21);
+    const back = addButton(this, width / 2, height * 0.62, '돌아가기', () => {
+      for (const o of [dim, text, back]) o.destroy();
+    }, 130, 40).setDepth(21);
   }
 
   // 기록 옮기기: 백업 코드 복사 / 코드로 불러오기

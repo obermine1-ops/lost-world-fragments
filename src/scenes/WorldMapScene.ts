@@ -8,6 +8,7 @@ export interface WorldMapData {
   current: string; // 지금 있는 지역
   onTravel: (map: string) => void;
   onHome: () => void;
+  onTitle: () => void; // 지금 위치를 저장하고 처음 화면으로
   onClose: () => void;
 }
 
@@ -51,6 +52,7 @@ export class WorldMapScene extends Phaser.Scene {
     fadeIn(this);
     this.add.rectangle(0, 0, width, height, 0x14121f, 0.96).setOrigin(0).setInteractive();
     this.add.text(width / 2, 26, '세계 지도', { fontFamily: FONT, fontSize: '22px', color: '#ffffff' }).setOrigin(0.5);
+    addButton(this, width - 46, 26, '처음 화면', () => data.onTitle(), 76, 26);
 
     let y = 52;
     for (const season of SEASONS) {

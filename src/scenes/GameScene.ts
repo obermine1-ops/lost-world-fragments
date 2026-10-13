@@ -1444,6 +1444,11 @@ export class GameScene extends Phaser.Scene {
         saveGame(game.state);
         fadeTo(this, 'House');
       }),
+      onTitle: () => close(() => {
+        this.savePosition();
+        this.leaving = true;
+        fadeTo(this, 'Title');
+      }),
     } satisfies WorldMapData);
   }
 

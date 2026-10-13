@@ -31,7 +31,7 @@ npm run dev
 | 명령 | 하는 일 |
 |---|---|
 | `npm run check-maps` | 모든 지도에서 필요한 물건·길목에 실제로 걸어서 닿는지 검사 |
-| `npm run test:features` | 낚시·지도·집·백업 코드 등 기능 13가지 점검 (약 20초, 개발 서버 필요) |
+| `npm run test:features` | 낚시·지도·집·백업 코드 등 기능 14가지 점검 (약 25초, 개발 서버 필요) |
 | `npm run test:play` | 자동 플레이 봇이 새 게임 → 최종 엔딩 → 무지개 동굴까지 완주 (약 6분, 개발 서버 필요) |
 | `npm run build` | 배포용 빌드 (`dist/`) |
 | `npm run maps` | 지도 다시 만들기 (`tools/build-maps.mjs`) |

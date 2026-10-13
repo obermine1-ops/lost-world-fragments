@@ -229,6 +229,41 @@ await check('새 소식 (돌아온 사람에게 한 번만)', async () => {
   return '처음만 뜸';
 });
 
+await check('지도 → 처음 화면 (위치 저장), 타이틀 → 게임 끝내기 안내', async () => {
+  await startGame(fullState({ map: 'beach-e' }), 'travel');
+  const saved = await run(async () => {
+    const gs = window.game.scene.getScene('Game');
+    gs.openWorldMap();
+    for (let i = 0; i < 30 && !window.game.scene.isActive('WorldMap'); i++) await new Promise((r) => setTimeout(r, 100));
+    const wm = window.game.scene.getScene('WorldMap');
+    const btn = wm.children.list.find((o) => o.type === 'Container' && o.list?.[1]?.text === '처음 화면');
+    if (!btn) throw new Error('지도에 처음 화면 버튼 없음');
+    btn.emit('pointerup');
+    for (let i = 0; i < 40 && !window.game.scene.isActive('Title'); i++) await new Promise((r) => setTimeout(r, 100));
+    if (!window.game.scene.isActive('Title')) throw new Error('타이틀로 안 감');
+    const s = JSON.parse(localStorage.getItem('lost-world-fragments/save')).state;
+    return s.map + (s.x !== undefined ? ' (위치 저장됨)' : ' (위치 없음)');
+  });
+  if (!saved.includes('beach-e') || !saved.includes('저장됨')) throw new Error(`저장: ${saved}`);
+  const quit = await run(async () => {
+    window.close = () => {}; // 테스트에서는 창을 닫지 않는다
+    const t = window.game.scene.getScene('Title');
+    await new Promise((r) => setTimeout(r, 500));
+    const btn = t.children.list.find((o) => o.type === 'Container' && o.list?.[1]?.text === '게임 끝내기');
+    if (!btn) throw new Error('타이틀에 게임 끝내기 버튼 없음');
+    btn.emit('pointerup');
+    await new Promise((r) => setTimeout(r, 200));
+    const shown = t.children.list.some((o) => o.type === 'Text' && o.text.startsWith('오늘도 수고했어요'));
+    const back = t.children.list.find((o) => o.type === 'Container' && o.list?.[1]?.text === '돌아가기');
+    back?.emit('pointerup');
+    await new Promise((r) => setTimeout(r, 200));
+    const gone = !t.children.list.some((o) => o.type === 'Text' && o.text.startsWith('오늘도 수고했어요'));
+    return shown && gone;
+  });
+  if (!quit) throw new Error('끝내기 안내가 안 뜨거나 안 닫힘');
+  return `${saved}, 끝내기 안내 → 돌아가기`;
+});
+
 await check('환경 소리 (되찾은 곳만, 효과음만이면 꺼짐)', async () => {
   const playing = () =>
     run(async () => {
